@@ -45,41 +45,45 @@ public sealed class StyleResolver
             ApplyRecursive(child);
         }
     }
-
     private void ApplyRule(
-        BrowserElement element,
-        ICssStyleRule rule)
+    BrowserElement element,
+    ICssStyleRule rule)
     {
-        var style =
-            rule.Style;
+        var style = rule.Style;
+
+        var fontSize =
+            style.GetPropertyValue(
+                "font-size");
 
         if (float.TryParse(
-            style.GetPropertyValue(
-                "font-size")
-                .Replace("px", ""),
-            out float fontSize))
+            fontSize.Replace("px", ""),
+            out float fs))
         {
-            element.Style.FontSize =
-                fontSize;
+            element.Style.FontSize = fs;
         }
 
-        if (float.TryParse(
+        var margin =
             style.GetPropertyValue(
-                "margin")
-                .Replace("px", ""),
-            out float margin))
+                "margin");
+
+        if (float.TryParse(
+            margin.Replace("px", ""),
+            out float m))
         {
-            element.Style.MarginTop =
-                margin;
+            element.Style.MarginTop = m;
+            element.Style.MarginBottom = m;
+            element.Style.MarginLeft = m;
+            element.Style.MarginRight = m;
+        }
 
-            element.Style.MarginBottom =
-                margin;
+        var color =
+            style.GetPropertyValue(
+                "color");
 
-            element.Style.MarginLeft =
-                margin;
-
-            element.Style.MarginRight =
-                margin;
+        if (!string.IsNullOrEmpty(color))
+        {
+            element.Style.Color =
+                CssColorParser.Parse(color);
         }
     }
 }

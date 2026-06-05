@@ -3,8 +3,8 @@ namespace CSBrowser.Render;
 public sealed class GdiRenderer
 {
     public void Render(
-        Graphics g,
-        List<DisplayItem> items)
+    Graphics g,
+    List<DisplayItem> items)
     {
         foreach (var item in items)
         {
@@ -14,10 +14,14 @@ public sealed class GdiRenderer
                     item.FontSize,
                     GraphicsUnit.Pixel);
 
+            using var brush =
+                new SolidBrush(
+                    item.Color);
+
             g.DrawString(
                 item.Text,
                 font,
-                Brushes.Black,
+                brush,
                 item.Bounds);
         }
     }

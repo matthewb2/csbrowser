@@ -45,11 +45,13 @@ public partial class MainForm
 h1 {
     font-size:32px;
     margin:20px;
+    color:red;
 }
 
 p {
     font-size:16px;
     margin:10px;
+    color:blue;
 }
 """;
 

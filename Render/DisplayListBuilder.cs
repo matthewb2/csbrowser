@@ -23,17 +23,20 @@ public sealed class DisplayListBuilder
             node.Element.Text))
         {
             list.Add(
-                new DisplayItem
-                {
-                    Text =
-                        node.Element.Text,
+     new DisplayItem
+     {
+         Text =
+             node.Element.Text,
 
-                    Bounds =
-                        node.Bounds,
+         Bounds =
+             node.Bounds,
 
-                    FontSize =
-                        node.Style.FontSize
-                });
+         FontSize =
+             node.Style.FontSize,
+
+         Color =
+             node.Style.Color
+     });
         }
 
         foreach (var child

@@ -9,5 +9,5 @@ public sealed class ComputedStyle
     public float MarginLeft = 0;
     public float MarginRight = 0;
 
-    public string Color = "#000000";
+    public Color Color = Color.Black;
 }
