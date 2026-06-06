@@ -30,11 +30,23 @@ public partial class MainForm
         <html>
         <body>
 
-            <h1>Hello CSBrowser</h1>
+        <h1 id="title">
+        Hello
+        </h1>
 
-            <p>
-                This is first page.
-            </p>
+        <script>
+
+        var h =
+            document.getElementById(
+                "title");
+
+        h.innerText =
+            "CSBrowser";
+
+        window.alert(
+            "JavaScript OK");
+
+        </script>
 
         </body>
         </html>

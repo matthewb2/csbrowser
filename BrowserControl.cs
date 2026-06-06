@@ -1,4 +1,5 @@
 using CSBrowser.Dom;
+using CSBrowser.JavaScript;
 using CSBrowser.Layout;
 using CSBrowser.Render;
 
@@ -10,15 +11,30 @@ public sealed class BrowserControl
     private List<DisplayItem>
         _displayList = new();
 
+    private BrowserElement?
+        _document;
+
     public void LoadDocument(
-        BrowserElement root)
+    BrowserElement root)
     {
+        _document = root;
+
+        ExecuteDocumentScripts();
+
+        Relayout();
+    }
+
+    private void Relayout()
+    {
+        if (_document == null)
+            return;
+
         var layout =
             new LayoutEngine();
 
         var layoutRoot =
             layout.Layout(
-                root,
+                _document,
                 Width);
 
         var builder =
@@ -41,5 +57,46 @@ public sealed class BrowserControl
         renderer.Render(
             e.Graphics,
             _displayList);
+    }
+
+    private void ExecuteDocumentScripts()
+    {
+        if (_document == null)
+            return;
+
+        var scripts =
+            ScriptCollector.Collect(
+                _document);
+
+        if (scripts.Count == 0)
+            return;
+
+        var browserDoc =
+            new BrowserDocument(
+                _document);
+
+        var jsDoc =
+            new JsDocument(
+                browserDoc);
+
+        var jsWindow =
+            new JsWindow();
+
+        var engine =
+            new JsEngine();
+
+        engine.SetGlobal(
+            "document",
+            jsDoc);
+
+        engine.SetGlobal(
+            "window",
+            jsWindow);
+
+        foreach (var script
+            in scripts)
+        {
+            engine.Execute(script);
+        }
     }
 }

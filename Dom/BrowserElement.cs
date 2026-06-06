@@ -8,9 +8,13 @@ public sealed class BrowserElement
 
     public string Text { get; set; } = "";
 
-    public List<BrowserElement> Children
-        = new();
+    public string Id { get; set; } = "";
+
+    public string ScriptContent { get; set; } = "";
 
     public ComputedStyle Style
+        = new();
+
+    public List<BrowserElement> Children
         = new();
 }

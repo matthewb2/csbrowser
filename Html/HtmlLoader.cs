@@ -1,5 +1,6 @@
 using AngleSharp;
 using AngleSharp.Dom;
+using AngleSharp.Html.Dom;
 using CSBrowser.Dom;
 
 namespace CSBrowser.Html;
@@ -21,7 +22,7 @@ public sealed class HtmlLoader
     }
 
     private BrowserElement Convert(
-        IElement element)
+    IElement element)
     {
         var node =
             new BrowserElement();
@@ -29,14 +30,22 @@ public sealed class HtmlLoader
         node.TagName =
             element.TagName.ToLower();
 
-        if (element.Children.Length == 0)
+        node.Id =
+            element.Id;
+
+        if (element is IHtmlScriptElement script)
+        {
+            node.ScriptContent =
+                script.Text;
+        }
+        else if (element.Children.Length == 0)
         {
             node.Text =
                 element.TextContent.Trim();
         }
 
         foreach (var child
-                 in element.Children)
+            in element.Children)
         {
             node.Children.Add(
                 Convert(child));
