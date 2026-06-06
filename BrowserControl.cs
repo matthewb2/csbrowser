@@ -8,19 +8,15 @@ namespace CSBrowser;
 public sealed class BrowserControl
     : Control
 {
-    private List<DisplayItem>
-        _displayList = new();
+    private List<DisplayItem> _displayList = new();
+    private BrowserElement? _document;
 
-    private BrowserElement?
-        _document;
-
-    public void LoadDocument(
-    BrowserElement root)
+    public void LoadDocument(BrowserElement root)
     {
+        Log.WriteLine("[BrowserControl] LoadDocument...");
+
         _document = root;
-
         ExecuteDocumentScripts();
-
         Relayout();
     }
 
@@ -29,34 +25,23 @@ public sealed class BrowserControl
         if (_document == null)
             return;
 
-        var layout =
-            new LayoutEngine();
+        Log.WriteLine("[BrowserControl] Relayout...");
 
-        var layoutRoot =
-            layout.Layout(
-                _document,
-                Width);
+        var layout = new LayoutEngine();
+        var layoutRoot = layout.Layout(_document, Width);
 
-        var builder =
-            new DisplayListBuilder();
-
-        _displayList =
-            builder.Build(layoutRoot);
+        var builder = new DisplayListBuilder();
+        _displayList = builder.Build(layoutRoot);
 
         Invalidate();
     }
 
-    protected override void OnPaint(
-        PaintEventArgs e)
+    protected override void OnPaint(PaintEventArgs e)
     {
         base.OnPaint(e);
 
-        var renderer =
-            new GdiRenderer();
-
-        renderer.Render(
-            e.Graphics,
-            _displayList);
+        var renderer = new GdiRenderer();
+        renderer.Render(e.Graphics, _displayList);
     }
 
     private void ExecuteDocumentScripts()
@@ -64,38 +49,23 @@ public sealed class BrowserControl
         if (_document == null)
             return;
 
-        var scripts =
-            ScriptCollector.Collect(
-                _document);
-
+        var scripts = ScriptCollector.Collect(_document);
         if (scripts.Count == 0)
             return;
 
-        var browserDoc =
-            new BrowserDocument(
-                _document);
+        Log.WriteLine("[BrowserControl] Executing scripts...");
 
-        var jsDoc =
-            new JsDocument(
-                browserDoc);
+        var browserDoc = new BrowserDocument(_document);
+        var jsDoc = new JsDocument(browserDoc);
+        var jsWindow = new JsWindow();
 
-        var jsWindow =
-            new JsWindow();
+        var engine = new JsEngine();
+        engine.SetGlobal("document", jsDoc);
+        engine.SetGlobal("window", jsWindow);
 
-        var engine =
-            new JsEngine();
-
-        engine.SetGlobal(
-            "document",
-            jsDoc);
-
-        engine.SetGlobal(
-            "window",
-            jsWindow);
-
-        foreach (var script
-            in scripts)
+        foreach (var script in scripts)
         {
+            Log.WriteLine($"  [Script] executing script...");
             engine.Execute(script);
         }
     }

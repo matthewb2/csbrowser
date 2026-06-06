@@ -11,4 +11,6 @@ public sealed class DisplayItem
     public float FontSize = 16;
 
     public Color Color = Color.Black;
+
+    public Color? BackgroundColor;
 }

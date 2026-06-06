@@ -4,80 +4,74 @@ namespace CSBrowser.Layout;
 
 public sealed class LayoutEngine
 {
+    private readonly FlexLayoutEngine _flex;
+
+    public LayoutEngine()
+    {
+        _flex = new FlexLayoutEngine(this);
+    }
+
     public LayoutNode Layout(
         BrowserElement root,
         float width)
     {
-        var layoutRoot =
-            Build(root);
-
-        LayoutBlock(
-            layoutRoot,
-            0,
-            0,
-            width);
-
+        var layoutRoot = Build(root);
+        LayoutBlock(layoutRoot, 0, 0, width);
         return layoutRoot;
     }
 
-    private LayoutNode Build(
-        BrowserElement element)
+    private LayoutNode Build(BrowserElement element)
     {
-        var node =
-            new LayoutNode();
-
-        node.Element =
-            element;
-
-        node.Style =
-            element.Style;
-
-        foreach (var child
-            in element.Children)
+        var node = new LayoutNode
         {
-            node.Children.Add(
-                Build(child));
-        }
+            Element = element,
+            Style = element.Style
+        };
+
+        foreach (var child in element.Children)
+            node.Children.Add(Build(child));
 
         return node;
     }
 
-    private float LayoutBlock(
+    public void LayoutBlock(
         LayoutNode node,
         float x,
         float y,
         float width)
     {
-        float currentY =
-            y + node.Style.MarginTop;
+        Log.WriteLine(
+            $"[Layout] <{node.Element?.TagName}> at ({x},{y}) w={width} disp={node.Style.Display}");
 
-        foreach (var child
-            in node.Children)
+        if (node.Style.Display == DisplayType.Flex)
         {
-            currentY +=
-                LayoutBlock(
-                    child,
-                    x +
-                    node.Style.MarginLeft,
-                    currentY,
-                    width);
+            _flex.LayoutFlex(node, x, y, width);
+            return;
         }
 
-        float height =
-            node.Style.FontSize + 10;
+        float currentY = y + node.Style.MarginTop;
 
-        node.Bounds =
-            new RectangleF(
-                x +
-                node.Style.MarginLeft,
-                y +
-                node.Style.MarginTop,
-                width,
-                height);
+        foreach (var child in node.Children)
+        {
+            LayoutBlock(
+                child,
+                x + node.Style.MarginLeft,
+                currentY,
+                width);
+            currentY += child.Bounds.Height
+                        + child.Style.MarginTop
+                        + child.Style.MarginBottom;
+        }
 
-        return
-            height +
-            node.Style.MarginTop +
-            node.Style.MarginBottom;
+        float height = node.Style.FontSize + 10;
+
+        node.Bounds = new RectangleF(
+            x + node.Style.MarginLeft,
+            y + node.Style.MarginTop,
+            width,
+            height);
+
+        Log.WriteLine(
+            $"[Layout] <{node.Element?.TagName}> bounds=({node.Bounds.X:F0},{node.Bounds.Y:F0} {node.Bounds.Width:F0}x{node.Bounds.Height:F0})");
     }
 }

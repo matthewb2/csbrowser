@@ -4,45 +4,37 @@ namespace CSBrowser.Render;
 
 public sealed class DisplayListBuilder
 {
-    public List<DisplayItem>
-        Build(LayoutNode root)
+    public List<DisplayItem> Build(LayoutNode root)
     {
-        var list =
-            new List<DisplayItem>();
+        Log.WriteLine("[DisplayListBuilder] Building display list...");
 
-        Visit(root, list);
-
-        return list;
+        var items = new List<DisplayItem>();
+        Walk(root, items);
+        return items;
     }
 
-    private void Visit(
-    LayoutNode node,
-    List<DisplayItem> list)
+    private void Walk(LayoutNode node, List<DisplayItem> items)
     {
-        if (!string.IsNullOrWhiteSpace(
-            node.Element.Text))
+        if (!string.IsNullOrEmpty(node.Element?.Text))
         {
-            list.Add(
-     new DisplayItem
-     {
-         Text =
-             node.Element.Text,
+            var item = new DisplayItem
+            {
+                Text = node.Element.Text,
+                Bounds = node.Bounds,
+                FontSize = node.Style.FontSize,
+                Color = node.Style.Color,
+                BackgroundColor = node.Style.BackgroundColor
+            };
 
-         Bounds =
-             node.Bounds,
+            items.Add(item);
 
-         FontSize =
-             node.Style.FontSize,
-
-         Color =
-             node.Style.Color
-     });
+            Log.WriteLine(
+                $"  [Display] \"{item.Text}\" at ({item.Bounds.X:F0},{item.Bounds.Y:F0}) " +
+                $"size=({item.Bounds.Width:F0}x{item.Bounds.Height:F0}) " +
+                $"font={item.FontSize} color={item.Color}");
         }
 
-        foreach (var child
-            in node.Children)
-        {
-            Visit(child, list);
-        }
+        foreach (var child in node.Children)
+            Walk(child, items);
     }
 }
