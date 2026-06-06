@@ -2,6 +2,7 @@
 
 public enum DisplayType
 {
+    None,
     Inline,
     Block,
     Flex

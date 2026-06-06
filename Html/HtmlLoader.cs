@@ -24,9 +24,12 @@ public sealed class HtmlLoader
 
         node.TagName = element.TagName.ToLower();
 
+        if (node.TagName is "head" or "script" or "style" or "meta" or "link" or "title")
+            node.Style.Display = DisplayType.None;
+
         Log.WriteLine($"  [HtmlLoader] <{node.TagName}>");
 
-        node.Id = element.Id;
+        node.Id = element.Id ?? "";
 
         var inlineStyle = element.GetAttribute("style");
         if (!string.IsNullOrEmpty(inlineStyle))

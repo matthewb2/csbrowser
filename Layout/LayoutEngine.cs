@@ -43,6 +43,12 @@ public sealed class LayoutEngine
         Log.WriteLine(
             $"[Layout] <{node.Element?.TagName}> at ({x},{y}) w={width} disp={node.Style.Display}");
 
+        if (node.Style.Display == DisplayType.None)
+        {
+            node.Bounds = RectangleF.Empty;
+            return;
+        }
+
         if (node.Style.Display == DisplayType.Flex)
         {
             _flex.LayoutFlex(node, x, y, width);

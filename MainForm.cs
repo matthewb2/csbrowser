@@ -5,6 +5,8 @@ namespace CSBrowser;
 
 public partial class MainForm : Form
 {
+    private BrowserControl _browser = null!;
+
     public MainForm()
     {
         InitializeComponent();
@@ -15,9 +17,19 @@ public partial class MainForm : Form
         object? sender,
         EventArgs e)
     {
-        var browser = new BrowserControl();
-        browser.Dock = DockStyle.Fill;
-        Controls.Add(browser);
+        _browser = new BrowserControl();
+        _browser.Dock = DockStyle.Fill;
+        Controls.Add(_browser);
+
+        var menu = new MenuStrip();
+        var fileMenu = new ToolStripMenuItem("&File");
+        var openItem = new ToolStripMenuItem("&Open...");
+        openItem.ShortcutKeys = Keys.Control | Keys.O;
+        openItem.Click += OnOpenFile;
+        fileMenu.DropDownItems.Add(openItem);
+        menu.Items.Add(fileMenu);
+        Controls.Add(menu);
+        MainMenuStrip = menu;
 
         string html =
         """
@@ -43,27 +55,46 @@ public partial class MainForm : Form
 
         string css =
         """
-        h1 {
-            font-size:32px;
-            margin:20px;
-            color:red;
-        }
-        p {
-            font-size:16px;
-            margin:10px;
-            color:blue;
-        }
+        body {
+            margin: 0;
+            padding: 0;
+            }
+
         """;
 
+        await LoadHtml(html, css);
+    }
+
+    private async void OnOpenFile(
+        object? sender,
+        EventArgs e)
+    {
+        using var dialog = new OpenFileDialog();
+        dialog.Filter = "HTML files (*.html;*.htm)|*.html;*.htm|All files (*.*)|*.*";
+        dialog.Title = "Open HTML File";
+
+        if (dialog.ShowDialog() == DialogResult.OK)
+        {
+            var html = await File.ReadAllTextAsync(dialog.FileName);
+            await LoadHtml(html, null);
+        }
+    }
+
+    private async Task LoadHtml(
+        string html,
+        string? css)
+    {
         var loader = new HtmlLoader();
         var doc = await loader.LoadAsync(html);
 
-        var cssLoader = new CssLoader();
-        var sheet = cssLoader.Parse(css);
+        if (!string.IsNullOrEmpty(css))
+        {
+            var cssLoader = new CssLoader();
+            var sheet = cssLoader.Parse(css);
+            var resolver = new StyleResolver(sheet);
+            resolver.Apply(doc);
+        }
 
-        var resolver = new StyleResolver(sheet);
-        resolver.Apply(doc);
-
-        browser.LoadDocument(doc);
+        _browser.LoadDocument(doc);
     }
 }
