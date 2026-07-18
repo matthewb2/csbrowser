@@ -21,6 +21,7 @@ public sealed class HtmlLoader
     private BrowserElement Convert(IElement element)
     {
         var node = new BrowserElement();
+        node.Source = element;
 
         node.TagName = element.TagName.ToLower();
 

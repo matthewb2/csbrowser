@@ -15,16 +15,19 @@ public sealed class DisplayListBuilder
 
     private void Walk(LayoutNode node, List<DisplayItem> items)
     {
-        if (!string.IsNullOrEmpty(node.Element?.Text))
+        if (node.Style.Display == DisplayType.None)
+            return;
+
+        if (!string.IsNullOrEmpty(node.BrowserElement?.Text))
         {
             var item = new DisplayItem
             {
-                Text = node.Element.Text,
+                Text = node.BrowserElement.Text,
                 Bounds = node.Bounds,
                 FontSize = node.Style.FontSize,
                 Color = node.Style.Color,
                 BackgroundColor = node.Style.BackgroundColor,
-                Element = node.Element
+                Element = node.BrowserElement
             };
 
             items.Add(item);

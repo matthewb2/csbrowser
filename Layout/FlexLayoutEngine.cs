@@ -16,7 +16,7 @@ public sealed class FlexLayoutEngine
         float width)
     {
         Log.WriteLine(
-            $"[Flex] container <{node.Element?.TagName}> at ({x},{y}) w={width} dir={node.Style.FlexDirection}");
+            $"[Flex] container <{node.Element?.TagName ?? node.BrowserElement?.TagName ?? "?"}> at ({x},{y}) w={width} dir={node.Style.FlexDirection}");
 
         if (node.Style.FlexDirection == FlexDirection.Row)
             LayoutRow(node, x, y, width);
@@ -26,8 +26,9 @@ public sealed class FlexLayoutEngine
 
     private float EstimateChildWidth(LayoutNode child)
     {
-        if (child.Element != null && !string.IsNullOrEmpty(child.Element.Text))
-            return child.Element.Text.Length * child.Style.FontSize * 0.85f + 6;
+        var text = child.BrowserElement?.Text;
+        if (!string.IsNullOrEmpty(text))
+            return text.Length * child.Style.FontSize * 0.85f + 6;
         return child.Style.FontSize * 4;
     }
 
@@ -52,7 +53,7 @@ public sealed class FlexLayoutEngine
                 child.Bounds.Height);
 
             Log.WriteLine(
-                $"[Flex] Row item <{child.Element?.TagName}> -> ({child.Bounds.X:F0},{child.Bounds.Y:F0}) size=({child.Bounds.Width:F0}x{child.Bounds.Height:F0})");
+                $"[Flex] Row item <{child.Element?.TagName ?? child.BrowserElement?.TagName ?? "?"}> -> ({child.Bounds.X:F0},{child.Bounds.Y:F0}) size=({child.Bounds.Width:F0}x{child.Bounds.Height:F0})");
 
             float childW = childContentW + child.Style.MarginLeft + child.Style.MarginRight;
             float childH = child.Bounds.Height + child.Style.MarginTop + child.Style.MarginBottom;
@@ -89,7 +90,7 @@ public sealed class FlexLayoutEngine
                 child.Bounds.Height);
 
             Log.WriteLine(
-                $"[Flex] Col item <{child.Element?.TagName}> -> ({child.Bounds.X:F0},{child.Bounds.Y:F0}) size=({child.Bounds.Width:F0}x{child.Bounds.Height:F0})");
+                $"[Flex] Col item <{child.Element?.TagName ?? child.BrowserElement?.TagName ?? "?"}> -> ({child.Bounds.X:F0},{child.Bounds.Y:F0}) size=({child.Bounds.Width:F0}x{child.Bounds.Height:F0})");
 
             cursorY += childH;
             if (childW > maxWidth) maxWidth = childW;
