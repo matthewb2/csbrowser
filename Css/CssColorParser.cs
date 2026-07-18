@@ -54,19 +54,13 @@ public static class CssColorParser
             return Color.FromArgb(r, g, b);
         }
 
-        if (value.StartsWith("#"))
+        try
         {
-            try
-            {
-                return ColorTranslator
-                    .FromHtml(value);
-            }
-            catch
-            {
-                return Color.Black;
-            }
+            return ColorTranslator.FromHtml(value);
         }
-
-        return Color.Black;
+        catch
+        {
+            return Color.Black;
+        }
     }
 }

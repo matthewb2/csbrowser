@@ -17,4 +17,6 @@ public sealed class JsElement
         get => _element.Text;
         set => _element.Text = value;
     }
+
+    public JsStyle style => new(_element);
 }

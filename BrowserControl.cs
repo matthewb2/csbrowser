@@ -8,14 +8,20 @@ namespace CSBrowser;
 public sealed class BrowserControl
     : Control
 {
-    private List<DisplayItem> _displayList = new();
+    private List<DisplayItem>? _displayList;
     private BrowserElement? _document;
+    private LayoutNode? _layoutRoot;
 
     public void LoadDocument(BrowserElement root)
     {
         Log.WriteLine("[BrowserControl] LoadDocument...");
 
+        if (_document != null)
+            _document.Unref();
+
         _document = root;
+        root.Ref();
+
         ExecuteDocumentScripts();
         Relayout();
     }
@@ -27,11 +33,24 @@ public sealed class BrowserControl
 
         Log.WriteLine("[BrowserControl] Relayout...");
 
+        if (_layoutRoot != null)
+        {
+            _layoutRoot.Unref();
+            _layoutRoot = null;
+        }
+
+        if (_displayList != null)
+        {
+            foreach (var item in _displayList)
+                item.Unref();
+            _displayList = null;
+        }
+
         var layout = new LayoutEngine();
-        var layoutRoot = layout.Layout(_document, Width);
+        _layoutRoot = layout.Layout(_document, Width);
 
         var builder = new DisplayListBuilder();
-        _displayList = builder.Build(layoutRoot);
+        _displayList = builder.Build(_layoutRoot);
 
         Invalidate();
     }
@@ -39,6 +58,9 @@ public sealed class BrowserControl
     protected override void OnPaint(PaintEventArgs e)
     {
         base.OnPaint(e);
+
+        if (_displayList == null)
+            return;
 
         var renderer = new GdiRenderer();
         renderer.Render(e.Graphics, _displayList);

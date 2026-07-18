@@ -38,16 +38,21 @@ public partial class MainForm : Form
 
         <div id="container"
              style="display:flex; flex-direction:row;">
-            <div style="font-size:20px; margin:0px; color:red; background-color:#777799">
+            <div id="_one" style="font-size:20px; margin:0px; color:red; background-color:#777799">
                 One
             </div>
-            <div style="font-size:20px; margin:0px; color:green;background-color:#eee">
+            <div id="_two" style="font-size:20px; margin:0px; color:green;background-color:#eee">
                 Two
             </div>
-            <div style="font-size:20px; margin:0px; color:blue; background-color:#777799">
+            <div id="_three" style="font-size:20px; margin:0px; color:blue; background-color:#777799">
                 Three
             </div>
         </div>
+
+        <script>
+            var el = document.getElementById('_one'); 
+            el.style.color = 'yellow';
+        </script>
 
         </body>
         </html>
@@ -96,5 +101,6 @@ public partial class MainForm : Form
         }
 
         _browser.LoadDocument(doc);
+        doc.Unref();
     }
 }

@@ -37,7 +37,7 @@
             BackColor = SystemColors.HighlightText;
             ClientSize = new Size(800, 450);
             Name = "MainForm";
-            Text = "MainForm";
+            Text = "CSBrowser";
             ResumeLayout(false);
         }
 

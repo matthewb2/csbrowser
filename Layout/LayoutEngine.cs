@@ -22,14 +22,16 @@ public sealed class LayoutEngine
 
     private LayoutNode Build(BrowserElement element)
     {
-        var node = new LayoutNode
-        {
-            Element = element,
-            Style = element.Style
-        };
+        var node = new LayoutNode();
+        node.Element = element;
+        element.Ref();
+        node.Style = element.Style;
 
         foreach (var child in element.Children)
-            node.Children.Add(Build(child));
+        {
+            var childNode = Build(child);
+            node.Children.Add(childNode);
+        }
 
         return node;
     }

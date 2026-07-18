@@ -48,7 +48,10 @@ public sealed class HtmlLoader
         }
 
         foreach (var child in element.Children)
-            node.Children.Add(Convert(child));
+        {
+            var childNode = Convert(child);
+            node.Children.Add(childNode);
+        }
 
         return node;
     }
