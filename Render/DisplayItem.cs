@@ -1,4 +1,5 @@
 using System.Drawing;
+using CSBrowser.Dom;
 
 namespace CSBrowser.Render;
 
@@ -9,6 +10,7 @@ public sealed class DisplayItem : RefCounted
     public float FontSize = 16;
     public Color Color = Color.Black;
     public Color? BackgroundColor;
+    public BrowserElement? Element;
 
     protected override void Cleanup()
     {

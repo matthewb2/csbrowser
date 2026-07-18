@@ -44,7 +44,7 @@ public partial class MainForm : Form
             <div id="_two" style="font-size:20px; margin:0px; color:green;background-color:#eee">
                 Two
             </div>
-            <div id="_three" style="font-size:20px; margin:0px; color:blue; background-color:#777799">
+            <div onmousemove="getPos(event)" id="_three" style="font-size:20px; margin:0px; color:blue; background-color:#777799">
                 Three
             </div>
         </div>
@@ -52,6 +52,15 @@ public partial class MainForm : Form
         <script>
             var el = document.getElementById('_one'); 
             el.style.color = 'yellow';
+            //alert("이것은 테스트입니다");
+            //console.log("로그 테스트입니다");
+            var el2 = document.querySelectorAll('div');
+            function getPos(e){
+        	    x=e.clientX;
+        	    y=e.clientY;
+        	    cursor="Your Mouse Position Is : " + x + " and " + y ;
+        	    console.log(cursor);
+            }
         </script>
 
         </body>

@@ -24,8 +24,12 @@ public static class ScriptCollector
             if (!string.IsNullOrWhiteSpace(
                 node.ScriptContent))
             {
-                scripts.Add(
-                    node.ScriptContent);
+                var cleaned =
+                    ScriptPreprocessor
+                        .StripHtmlComments(
+                            node.ScriptContent);
+
+                scripts.Add(cleaned);
             }
         }
 

@@ -23,7 +23,8 @@ public sealed class DisplayListBuilder
                 Bounds = node.Bounds,
                 FontSize = node.Style.FontSize,
                 Color = node.Style.Color,
-                BackgroundColor = node.Style.BackgroundColor
+                BackgroundColor = node.Style.BackgroundColor,
+                Element = node.Element
             };
 
             items.Add(item);

@@ -30,12 +30,25 @@ public sealed class HtmlLoader
         Log.WriteLine($"  [HtmlLoader] <{node.TagName}>");
 
         node.Id = element.Id ?? "";
+        node.ClassName = element.GetAttribute("class") ?? "";
 
         var inlineStyle = element.GetAttribute("style");
         if (!string.IsNullOrEmpty(inlineStyle))
         {
             Log.WriteLine($"  [HtmlLoader]  inline style: \"{inlineStyle}\"");
             ApplyInlineStyle(node, inlineStyle);
+        }
+
+        // Parse on* event handler attributes
+        foreach (var attr in element.Attributes)
+        {
+            var name = attr.Name.ToLowerInvariant();
+            if (name.StartsWith("on") && name.Length > 2 && !string.IsNullOrEmpty(attr.Value))
+            {
+                var eventType = name[2..];
+                node.OnEventHandlers[eventType] = attr.Value;
+                Log.WriteLine($"  [HtmlLoader]  on{eventType}=\"{attr.Value}\"");
+            }
         }
 
         if (element is IHtmlScriptElement script)

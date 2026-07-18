@@ -20,4 +20,30 @@ public sealed class JsDocument
             ? new JsElement(element)
             : null;
     }
+
+    public JsElement[]
+        getElementsByTagName(
+            string tagName)
+    {
+        var elements =
+            _doc.GetElementsByTagName(
+                tagName);
+
+        return elements
+            .Select(e => new JsElement(e))
+            .ToArray();
+    }
+
+    public JsElement[]
+        querySelectorAll(
+            string selectors)
+    {
+        var elements =
+            _doc.QuerySelectorAll(
+                selectors);
+
+        return elements
+            .Select(e => new JsElement(e))
+            .ToArray();
+    }
 }
