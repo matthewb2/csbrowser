@@ -68,17 +68,67 @@ public sealed class JsElement
         string type,
         Action<JsMouseEvent> callback)
     {
+        AddListener(type, callback, false, false, false);
+    }
+
+    public void addEventListener(
+        string type,
+        Action<JsMouseEvent> callback,
+        bool useCapture)
+    {
+        AddListener(type, callback, false, useCapture, false);
+    }
+
+    public void addEventListener(
+        string type,
+        Action<JsMouseEvent> callback,
+        Dictionary<string, object?>? options)
+    {
+        var once = false;
+        var capture = false;
+        var passive = false;
+
+        if (options != null)
+        {
+            if (options.TryGetValue("once",
+                    out var onceVal)
+                && onceVal is bool o)
+                once = o;
+
+            if (options.TryGetValue("capture",
+                    out var capVal)
+                && capVal is bool c)
+                capture = c;
+
+            if (options.TryGetValue("passive",
+                    out var passVal)
+                && passVal is bool p)
+                passive = p;
+        }
+
+        AddListener(type, callback, once, capture, passive);
+    }
+
+    private void AddListener(
+        string type,
+        Action<JsMouseEvent> callback,
+        bool once,
+        bool capture,
+        bool passive)
+    {
         var key = type.ToLowerInvariant();
 
         if (!_element.EventListeners
                 .ContainsKey(key))
         {
             _element.EventListeners[key] =
-                new List<Delegate>();
+                new List<EventListenerInfo>();
         }
 
         _element.EventListeners[key]
-            .Add(callback);
+            .Add(new EventListenerInfo(
+                callback, once, capture,
+                passive));
     }
 
     public void removeEventListener(
@@ -90,7 +140,9 @@ public sealed class JsElement
         if (_element.EventListeners
                 .TryGetValue(key, out var list))
         {
-            list.Remove(callback);
+            list.RemoveAll(
+                li => ReferenceEquals(
+                    li.Callback, callback));
         }
     }
 
@@ -105,8 +157,7 @@ public sealed class JsElement
                         out var list)
                 && list.Count > 0)
             {
-                // return the first listener as onmousedown
-                return list[0] as
+                return list[0].Callback as
                     Action<JsMouseEvent>;
             }
 
@@ -116,11 +167,13 @@ public sealed class JsElement
         {
             var key = "mousedown";
             _element.EventListeners[key] =
-                new List<Delegate>();
+                new List<EventListenerInfo>();
 
             if (value != null)
                 _element.EventListeners[key]
-                    .Add(value);
+                    .Add(new EventListenerInfo(
+                        value, false, false,
+                        false));
         }
     }
 }

@@ -14,7 +14,7 @@ public sealed class BrowserElement : RefCounted
     public ComputedStyle Style = new();
 
     public List<BrowserElement> Children = new();
-    public Dictionary<string, List<Delegate>> EventListeners = new();
+    public Dictionary<string, List<EventListenerInfo>> EventListeners = new();
     public Dictionary<string, string> OnEventHandlers = new();
 
     protected override void Cleanup()

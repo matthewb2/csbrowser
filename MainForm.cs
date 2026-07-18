@@ -53,7 +53,8 @@ public partial class MainForm : Form
             var el = document.getElementById('_one'); 
             el.style.color = 'yellow';
             //alert("이것은 테스트입니다");
-            //console.log("로그 테스트입니다");
+            var topic = "mouse position";
+            console.log(`Fetched data from ${topic}`);
             var el2 = document.querySelectorAll('div');
             function getPos(e){
         	    x=e.clientX;

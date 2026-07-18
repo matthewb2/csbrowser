@@ -126,14 +126,22 @@ public sealed class BrowserControl
                     .HasFlag(Keys.Shift),
                 metaKey: false);
 
-            foreach (var listener in listeners)
+            var toRemove = new List<EventListenerInfo>();
+
+            foreach (var info in listeners)
             {
-                if (listener is
+                if (info.Callback is
                     Action<JsMouseEvent> cb)
                 {
                     cb(jsEvent);
+
+                    if (info.Once)
+                        toRemove.Add(info);
                 }
             }
+
+            foreach (var info in toRemove)
+                listeners.Remove(info);
 
             break;
         }
@@ -162,6 +170,12 @@ public sealed class BrowserControl
         engine.SetGlobal("alert",
             (string message) =>
                 jsWindow.alert(message));
+        engine.SetGlobal("setTimeout",
+            (Delegate callback, int delay) =>
+                jsWindow.setTimeout(callback, delay));
+        engine.SetGlobal("clearTimeout",
+            (int id) =>
+                jsWindow.clearTimeout(id));
 
         foreach (var script in scripts)
         {
