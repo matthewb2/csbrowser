@@ -1,5 +1,4 @@
-﻿using CSBrowser.Css;
-using CSBrowser.Html;
+﻿using CSBrowser.Html;
 
 namespace CSBrowser;
 
@@ -34,6 +33,14 @@ public partial class MainForm : Form
         string html =
         """
         <html>
+        <head>
+        <style>
+        body {
+            margin: 50px;
+            padding: 0;
+        }
+        </style>
+        </head>
         <body>
 
         <div id="container"
@@ -50,15 +57,13 @@ public partial class MainForm : Form
         </div>
         <div>
             <li>One</li>
-            <li>Twe</li>
+            <li>Two</li>
             <li>Three</li>
-
         </div>
 
         <script>
             var el = document.getElementById('_one'); 
             el.style.color = 'yellow';
-            //alert("이것은 테스트입니다");
             var topic = "mouse position";
             console.log(`Fetched data from ${topic}`);
             var el2 = document.querySelectorAll('div');
@@ -74,16 +79,7 @@ public partial class MainForm : Form
         </html>
         """;
 
-        string css =
-        """
-        body {
-            margin: 0;
-            padding: 0;
-            }
-
-        """;
-
-        await LoadHtml(html, css);
+        await LoadHtml(html);
     }
 
     private async void OnOpenFile(
@@ -97,24 +93,14 @@ public partial class MainForm : Form
         if (dialog.ShowDialog() == DialogResult.OK)
         {
             var html = await File.ReadAllTextAsync(dialog.FileName);
-            await LoadHtml(html, null);
+            await LoadHtml(html);
         }
     }
 
-    private async Task LoadHtml(
-        string html,
-        string? css)
+    private async Task LoadHtml(string html)
     {
         var loader = new HtmlLoader();
         var doc = await loader.LoadAsync(html);
-
-        if (!string.IsNullOrEmpty(css))
-        {
-            var cssLoader = new CssLoader();
-            var sheet = cssLoader.Parse(css);
-            var resolver = new StyleResolver(sheet);
-            resolver.Apply(doc);
-        }
 
         _browser.LoadDocument(doc);
         doc.Unref();
