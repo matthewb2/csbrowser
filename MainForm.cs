@@ -30,6 +30,7 @@ public partial class MainForm : Form
         Controls.Add(menu);
         MainMenuStrip = menu;
 
+        /*
         string html =
         """
         <html>
@@ -80,6 +81,12 @@ public partial class MainForm : Form
         """;
 
         await LoadHtml(html);
+        */
+
+        var resDir = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Res");
+        var htmlPath = Path.Combine(resDir, "index.html");
+        var html = await File.ReadAllTextAsync(htmlPath);
+        await LoadHtml(html, resDir);
     }
 
     private async void OnOpenFile(
@@ -93,14 +100,15 @@ public partial class MainForm : Form
         if (dialog.ShowDialog() == DialogResult.OK)
         {
             var html = await File.ReadAllTextAsync(dialog.FileName);
-            await LoadHtml(html);
+            var baseDir = Path.GetDirectoryName(dialog.FileName);
+            await LoadHtml(html, baseDir);
         }
     }
 
-    private async Task LoadHtml(string html)
+    private async Task LoadHtml(string html, string? baseDir = null)
     {
         var loader = new HtmlLoader();
-        var doc = await loader.LoadAsync(html);
+        var doc = await loader.LoadAsync(html, baseDir);
 
         _browser.LoadDocument(doc);
         doc.Unref();

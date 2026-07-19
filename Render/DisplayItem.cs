@@ -1,5 +1,6 @@
 using System.Drawing;
 using CSBrowser.Dom;
+using CSBrowser.Layout;
 
 namespace CSBrowser.Render;
 
@@ -12,7 +13,13 @@ public sealed class DisplayItem : RefCounted
     public Color? BackgroundColor;
     public BrowserElement? Element;
 
+    public bool IsImage;
+    public Image? Image;
+
+    public TextDecorationType TextDecoration = TextDecorationType.None;
+
     protected override void Cleanup()
     {
+        Image = null;
     }
 }

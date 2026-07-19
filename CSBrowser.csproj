@@ -14,4 +14,10 @@
     <PackageReference Include="Jint" Version="4.13.0" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Content Include="Res\**\*">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+  </ItemGroup>
+
 </Project>

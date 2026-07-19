@@ -6,11 +6,18 @@ using CSBrowser.Render;
 namespace CSBrowser;
 
 public sealed class BrowserControl
-    : Control
+    : UserControl
 {
     private List<DisplayItem>? _displayList;
     private BrowserElement? _document;
     private LayoutNode? _layoutRoot;
+    private BrowserElement? _hoveredElement;
+
+    public BrowserControl()
+    {
+        AutoScroll = true;
+        DoubleBuffered = true;
+    }
 
     public void LoadDocument(BrowserElement root)
     {
@@ -52,19 +59,117 @@ public sealed class BrowserControl
         var builder = new DisplayListBuilder();
         _displayList = builder.Build(_layoutRoot);
 
+        if (_layoutRoot != null)
+        {
+            float docHeight = _layoutRoot.Bounds.Y + _layoutRoot.Bounds.Height + 20;
+            AutoScrollMinSize = new Size(Width, (int)docHeight);
+        }
+
         Invalidate();
     }
 
     protected override void OnMouseDown(MouseEventArgs e)
     {
         base.OnMouseDown(e);
-        DispatchMouseEvent("mousedown", e);
+        var scrolled = new Point(e.X + AutoScrollPosition.X, e.Y + AutoScrollPosition.Y);
+        DispatchMouseEvent("mousedown", scrolled, e.Button);
     }
 
     protected override void OnMouseMove(MouseEventArgs e)
     {
         base.OnMouseMove(e);
-        DispatchMouseEvent("mousemove", e);
+        var scrolled = new Point(e.X + AutoScrollPosition.X, e.Y + AutoScrollPosition.Y);
+
+        UpdateHoverState(scrolled);
+        DispatchMouseEvent("mousemove", scrolled, e.Button);
+    }
+
+    protected override void OnMouseLeave(EventArgs e)
+    {
+        base.OnMouseLeave(e);
+        ClearHoverState();
+    }
+
+    private void UpdateHoverState(Point pos)
+    {
+        if (_displayList == null)
+            return;
+
+        BrowserElement? found = null;
+
+        for (int i = _displayList.Count - 1; i >= 0; i--)
+        {
+            var item = _displayList[i];
+            if (item.Element != null && item.Bounds.Contains(pos.X, pos.Y))
+            {
+                found = item.Element;
+                break;
+            }
+        }
+
+        BrowserElement? foundAncestor = found?.FindAncestorWithPseudoStyle();
+        BrowserElement? oldAncestor = _hoveredElement?.FindAncestorWithPseudoStyle();
+
+        if (foundAncestor == oldAncestor)
+            return;
+
+        if (oldAncestor != null)
+        {
+            ClearHoverRecursive(oldAncestor);
+            RebuildDisplayList();
+        }
+
+        _hoveredElement = found;
+
+        if (foundAncestor != null)
+        {
+            SetHoverRecursive(foundAncestor);
+            RebuildDisplayList();
+        }
+    }
+
+    private static void SetHoverRecursive(BrowserElement element)
+    {
+        element.IsHovered = true;
+        foreach (var child in element.Children)
+            child.IsHovered = true;
+    }
+
+    private static void ClearHoverRecursive(BrowserElement element)
+    {
+        element.IsHovered = false;
+        foreach (var child in element.Children)
+            child.IsHovered = false;
+    }
+
+    private void ClearHoverState()
+    {
+        if (_hoveredElement != null)
+        {
+            var ancestor = _hoveredElement.FindAncestorWithPseudoStyle();
+            if (ancestor != null)
+            {
+                ClearHoverRecursive(ancestor);
+                RebuildDisplayList();
+            }
+            _hoveredElement = null;
+        }
+    }
+
+    private void RebuildDisplayList()
+    {
+        if (_layoutRoot == null)
+            return;
+
+        if (_displayList != null)
+        {
+            foreach (var item in _displayList)
+                item.Unref();
+        }
+
+        var builder = new DisplayListBuilder();
+        _displayList = builder.Build(_layoutRoot);
+        Invalidate();
     }
 
     protected override void OnPaint(PaintEventArgs e)
@@ -74,13 +179,18 @@ public sealed class BrowserControl
         if (_displayList == null)
             return;
 
+        e.Graphics.TranslateTransform(
+            AutoScrollPosition.X,
+            AutoScrollPosition.Y);
+
         var renderer = new GdiRenderer();
         renderer.Render(e.Graphics, _displayList);
     }
 
     private void DispatchMouseEvent(
         string eventType,
-        MouseEventArgs e)
+        Point pos,
+        MouseButtons button = MouseButtons.None)
     {
         if (_displayList == null)
             return;
@@ -92,7 +202,7 @@ public sealed class BrowserControl
             if (item.Element == null)
                 continue;
 
-            if (!item.Bounds.Contains(e.X, e.Y))
+            if (!item.Bounds.Contains(pos.X, pos.Y))
                 continue;
 
             var element = item.Element;
@@ -102,16 +212,15 @@ public sealed class BrowserControl
                         out var listeners))
                 break;
 
-            var screen = PointToScreen(
-                new Point(e.X, e.Y));
+            var screen = PointToScreen(pos);
 
             var jsEvent = new JsMouseEvent(
                 type: eventType,
-                clientX: e.X,
-                clientY: e.Y,
+                clientX: pos.X,
+                clientY: pos.Y,
                 screenX: screen.X,
                 screenY: screen.Y,
-                button: e.Button switch
+                button: button switch
                 {
                     MouseButtons.Left => 0,
                     MouseButtons.Middle => 1,
@@ -183,7 +292,6 @@ public sealed class BrowserControl
             engine.Execute(script);
         }
 
-        // Register on* HTML attribute handlers
         RegisterOnHandlers(engine, _document);
     }
 

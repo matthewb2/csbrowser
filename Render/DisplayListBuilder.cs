@@ -4,6 +4,8 @@ namespace CSBrowser.Render;
 
 public sealed class DisplayListBuilder
 {
+    private static readonly Dictionary<string, Image> _imageCache = new();
+
     public List<DisplayItem> Build(LayoutNode root)
     {
         Log.WriteLine("[DisplayListBuilder] Building display list...");
@@ -18,16 +20,37 @@ public sealed class DisplayListBuilder
         if (node.Style.Display == DisplayType.None)
             return;
 
-        if (!string.IsNullOrEmpty(node.BrowserElement?.Text))
+        var be = node.BrowserElement;
+        var effectiveStyle = be?.GetEffectiveStyle() ?? node.Style;
+
+        if (be != null && !string.IsNullOrEmpty(be.ImagePath))
         {
             var item = new DisplayItem
             {
-                Text = node.BrowserElement.Text,
+                IsImage = true,
+                Image = LoadImage(be.ImagePath),
                 Bounds = node.Bounds,
-                FontSize = node.Style.FontSize,
-                Color = node.Style.Color,
-                BackgroundColor = node.Style.BackgroundColor,
-                Element = node.BrowserElement
+                BackgroundColor = effectiveStyle.BackgroundColor,
+                Element = be
+            };
+
+            items.Add(item);
+
+            Log.WriteLine(
+                $"  [Display] <img> at ({item.Bounds.X:F0},{item.Bounds.Y:F0}) " +
+                $"size=({item.Bounds.Width:F0}x{item.Bounds.Height:F0})");
+        }
+        else if (be != null && !string.IsNullOrEmpty(be.Text))
+        {
+            var item = new DisplayItem
+            {
+                Text = be.Text,
+                Bounds = node.Bounds,
+                FontSize = effectiveStyle.FontSize,
+                Color = effectiveStyle.Color,
+                BackgroundColor = effectiveStyle.BackgroundColor,
+                TextDecoration = effectiveStyle.TextDecoration,
+                Element = be
             };
 
             items.Add(item);
@@ -35,10 +58,35 @@ public sealed class DisplayListBuilder
             Log.WriteLine(
                 $"  [Display] \"{item.Text}\" at ({item.Bounds.X:F0},{item.Bounds.Y:F0}) " +
                 $"size=({item.Bounds.Width:F0}x{item.Bounds.Height:F0}) " +
-                $"font={item.FontSize} color={item.Color}");
+                $"font={item.FontSize} color={item.Color} decorate={item.TextDecoration}");
         }
 
         foreach (var child in node.Children)
             Walk(child, items);
+    }
+
+    private static Image? LoadImage(string path)
+    {
+        if (_imageCache.TryGetValue(path, out var cached))
+            return cached;
+
+        if (!File.Exists(path))
+        {
+            Log.WriteLine($"  [Display]  image not found: {path}");
+            return null;
+        }
+
+        try
+        {
+            var img = Image.FromFile(path);
+            _imageCache[path] = img;
+            Log.WriteLine($"  [Display]  image loaded: {path} ({img.Width}x{img.Height})");
+            return img;
+        }
+        catch (Exception ex)
+        {
+            Log.WriteLine($"  [Display]  failed to load image: {path} - {ex.Message}");
+            return null;
+        }
     }
 }

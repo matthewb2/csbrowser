@@ -213,27 +213,110 @@ public sealed class LayoutEngine
             return;
         }
 
-        float currentY = y + node.Style.MarginTop;
+        float currentY = y + node.Style.MarginTop + node.Style.PaddingTop;
+        float contentHeight = node.Style.FontSize + 10;
 
+        bool hasInlineChildren = false;
+        bool hasBlockChildren = false;
         foreach (var child in node.Children)
         {
-            LayoutBlock(child, x + node.Style.MarginLeft, currentY, width);
-            currentY += child.Bounds.Height
-                        + child.Style.MarginTop
-                        + child.Style.MarginBottom;
+            if (child.Style.Display == DisplayType.Inline ||
+                child.Style.Display == DisplayType.None)
+                hasInlineChildren = true;
+            else
+                hasBlockChildren = true;
         }
 
-        float contentHeight = node.Style.FontSize + 10;
-        if (node.Children.Count > 0)
+        float outerWidth;
+        if (node.Style.Width.HasValue)
         {
-            var lastChild = node.Children[^1];
-            contentHeight = lastChild.Bounds.Y + lastChild.Bounds.Height - y;
+            outerWidth = node.Style.Width.Value;
         }
+        else
+        {
+            outerWidth = width;
+        }
+
+        float marginLeft = node.Style.MarginLeft;
+        float marginRight = node.Style.MarginRight;
+        float paddingLeft = node.Style.PaddingLeft;
+        float paddingRight = node.Style.PaddingRight;
+
+        float boundsWidth;
+        float contentWidth;
+
+        if (node.Style.BoxSizing == BoxSizingType.BorderBox)
+        {
+            boundsWidth = outerWidth;
+            contentWidth = outerWidth - paddingLeft - paddingRight;
+        }
+        else
+        {
+            boundsWidth = outerWidth;
+            contentWidth = outerWidth - paddingLeft - paddingRight;
+        }
+
+        float contentX = x + node.Style.MarginLeft + node.Style.PaddingLeft;
+
+        if (hasInlineChildren && !hasBlockChildren)
+        {
+            float currentX = contentX;
+            float lineY = currentY;
+            float lineHeight = 0;
+            float maxX = contentX + contentWidth;
+
+            foreach (var child in node.Children)
+            {
+                if (child.Style.Display == DisplayType.None)
+                    continue;
+
+                LayoutBlock(child, currentX, lineY, contentWidth);
+
+                if (currentX + child.Bounds.Width > maxX && currentX > contentX)
+                {
+                    currentX = contentX;
+                    lineY += lineHeight + child.Style.MarginTop;
+                    lineHeight = 0;
+
+                    LayoutBlock(child, currentX, lineY, contentWidth);
+                }
+
+                currentX += child.Bounds.Width
+                            + child.Style.MarginLeft
+                            + child.Style.MarginRight;
+
+                if (child.Bounds.Height > lineHeight)
+                    lineHeight = child.Bounds.Height;
+            }
+
+            contentHeight = lineY + lineHeight - y;
+        }
+        else
+        {
+            foreach (var child in node.Children)
+            {
+                LayoutBlock(child, contentX, currentY, contentWidth);
+                currentY += child.Bounds.Height
+                            + child.Style.MarginTop
+                            + child.Style.MarginBottom;
+            }
+
+            if (node.Children.Count > 0)
+            {
+                var lastChild = node.Children[^1];
+                contentHeight = lastChild.Bounds.Y + lastChild.Bounds.Height - y;
+            }
+        }
+
+        contentHeight += node.Style.PaddingTop + node.Style.PaddingBottom;
+
+        if (node.Style.Height.HasValue && node.Style.Height.Value > contentHeight)
+            contentHeight = node.Style.Height.Value;
 
         node.Bounds = new RectangleF(
             x + node.Style.MarginLeft,
             y + node.Style.MarginTop,
-            width,
+            boundsWidth,
             contentHeight);
 
         Log.WriteLine(
@@ -244,8 +327,51 @@ public sealed class LayoutEngine
     {
         var tagName = node.Element?.TagName ?? "?";
 
-        float contentWidth = EstimateInlineWidth(node);
-        float contentHeight = node.Style.FontSize + 4;
+        float contentWidth;
+        float contentHeight;
+
+        if (node.Element is IHtmlImageElement img)
+        {
+            var wAttr = img.GetAttribute("width");
+            var hAttr = img.GetAttribute("height");
+
+            if (float.TryParse(wAttr, out float w) && float.TryParse(hAttr, out float h))
+            {
+                contentWidth = w;
+                contentHeight = h;
+            }
+            else
+            {
+                var natural = GetImageNaturalSize(node.BrowserElement?.ImagePath);
+                contentWidth = natural.Width;
+                contentHeight = natural.Height;
+            }
+        }
+        else if (node.Children.Count > 0)
+        {
+            float childW = 0;
+            float childH = 0;
+
+            foreach (var child in node.Children)
+            {
+                LayoutBlock(child, x + childW, y, width);
+
+                childW += child.Bounds.Width
+                          + child.Style.MarginLeft
+                          + child.Style.MarginRight;
+
+                if (child.Bounds.Height > childH)
+                    childH = child.Bounds.Height;
+            }
+
+            contentWidth = childW;
+            contentHeight = childH;
+        }
+        else
+        {
+            contentWidth = EstimateInlineWidth(node);
+            contentHeight = node.Style.FontSize + 4;
+        }
 
         node.Bounds = new RectangleF(x, y, contentWidth, contentHeight);
 
@@ -257,9 +383,24 @@ public sealed class LayoutEngine
     {
         var text = node.BrowserElement?.Text;
         if (!string.IsNullOrEmpty(text))
-            return text.Length * node.Style.FontSize * 0.6f;
+            return text.Length * node.Style.FontSize * 0.75f + 2;
 
         return node.Style.FontSize * 2;
+    }
+
+    private static SizeF GetImageNaturalSize(string? path)
+    {
+        if (!string.IsNullOrEmpty(path) && File.Exists(path))
+        {
+            try
+            {
+                using var img = Image.FromFile(path);
+                return new SizeF(img.Width, img.Height);
+            }
+            catch { }
+        }
+
+        return new SizeF(300, 200);
     }
 
     private void LayoutTable(LayoutNode node, float x, float y, float width)
