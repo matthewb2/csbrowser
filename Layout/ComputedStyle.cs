@@ -28,6 +28,12 @@ public enum BoxSizingType
     BorderBox
 }
 
+public enum ElementState
+{
+    Normal,
+    Hover
+}
+
 public sealed class ComputedStyle
 {
     public HashSet<string> SetProperties = new();

@@ -270,7 +270,7 @@ public sealed class HtmlLoader
         }
 
         var pseudoStyle = new ComputedStyle();
-        ApplyCssDeclaration(pseudoStyle, pseudoName, css);
+        ApplyCssDeclaration(pseudoStyle, $"{baseSelector}:{pseudoName}", css);
 
         foreach (var element in matched)
         {

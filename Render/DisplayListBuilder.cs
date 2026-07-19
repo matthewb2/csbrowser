@@ -21,7 +21,12 @@ public sealed class DisplayListBuilder
             return;
 
         var be = node.BrowserElement;
-        var effectiveStyle = be?.GetEffectiveStyle() ?? node.Style;
+        var effectiveStyle = be?.EffectiveStyle ?? node.Style;
+
+        if (be != null && !string.IsNullOrEmpty(be.Text))
+        {
+            Log.WriteLine($"  [Display] effective for <{be.TagName}>: TextDecoration={effectiveStyle.TextDecoration} Color={effectiveStyle.Color} State={be.State}");
+        }
 
         if (be != null && !string.IsNullOrEmpty(be.ImagePath))
         {

@@ -107,14 +107,23 @@ public sealed class BrowserControl
             }
         }
 
+        Log.WriteLine($"[Hover] hit element: {(found != null ? $"<{found.TagName}> id={found.Id} class={found.ClassName}" : "null")}");
+
         BrowserElement? foundAncestor = found?.FindAncestorWithPseudoStyle();
         BrowserElement? oldAncestor = _hoveredElement?.FindAncestorWithPseudoStyle();
 
+        Log.WriteLine($"[Hover] foundAncestor: {(foundAncestor != null ? $"<{foundAncestor.TagName}> pseudoKeys=[{string.Join(",", foundAncestor.PseudoStyles.Keys)}]" : "null")}");
+        Log.WriteLine($"[Hover] oldAncestor: {(oldAncestor != null ? $"<{oldAncestor.TagName}>" : "null")}");
+
         if (foundAncestor == oldAncestor)
+        {
+            Log.WriteLine($"[Hover] no change, skip");
             return;
+        }
 
         if (oldAncestor != null)
         {
+            Log.WriteLine($"[Hover] CLEAR hover on <{oldAncestor.TagName}>");
             ClearHoverRecursive(oldAncestor);
             RebuildDisplayList();
         }
@@ -123,23 +132,25 @@ public sealed class BrowserControl
 
         if (foundAncestor != null)
         {
+            Log.WriteLine($"[Hover] SET hover on <{foundAncestor.TagName}>, state={foundAncestor.State}");
             SetHoverRecursive(foundAncestor);
+            Log.WriteLine($"[Hover] after set: state={foundAncestor.State}, effective.TextDecoration={foundAncestor.EffectiveStyle.TextDecoration}");
             RebuildDisplayList();
         }
     }
 
     private static void SetHoverRecursive(BrowserElement element)
     {
-        element.IsHovered = true;
+        element.State = ElementState.Hover;
         foreach (var child in element.Children)
-            child.IsHovered = true;
+            child.State = ElementState.Hover;
     }
 
     private static void ClearHoverRecursive(BrowserElement element)
     {
-        element.IsHovered = false;
+        element.State = ElementState.Normal;
         foreach (var child in element.Children)
-            child.IsHovered = false;
+            child.State = ElementState.Normal;
     }
 
     private void ClearHoverState()
