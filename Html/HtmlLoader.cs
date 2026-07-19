@@ -1,4 +1,5 @@
 using AngleSharp;
+using AngleSharp.Css;
 using AngleSharp.Css.Dom;
 using AngleSharp.Dom;
 using AngleSharp.Html.Dom;
@@ -9,8 +10,6 @@ namespace CSBrowser.Html;
 
 public sealed class HtmlLoader
 {
-    private readonly Dictionary<BrowserElement, string> _inlineStyles = new();
-
     public async Task<BrowserElement> LoadAsync(string html)
     {
         Log.WriteLine("[HtmlLoader] Parsing HTML...");
@@ -22,7 +21,7 @@ public sealed class HtmlLoader
         var root = Convert(doc.DocumentElement);
 
         ApplyStyles(root, doc);
-        ApplyInlineStyles();
+        ApplyInlineStyles(root);
 
         return root;
     }
@@ -31,7 +30,6 @@ public sealed class HtmlLoader
     {
         var node = new BrowserElement();
         node.Source = element;
-
         node.TagName = element.TagName.ToLower();
 
         if (node.TagName is "head" or "script" or "style" or "meta" or "link" or "title")
@@ -42,11 +40,11 @@ public sealed class HtmlLoader
         node.Id = element.Id ?? "";
         node.ClassName = element.GetAttribute("class") ?? "";
 
-        var inlineStyle = element.GetAttribute("style");
-        if (!string.IsNullOrEmpty(inlineStyle))
+        var inlineStyle = element.GetStyle();
+        if (inlineStyle != null && inlineStyle.Length > 0)
         {
-            Log.WriteLine($"  [HtmlLoader]  inline style (deferred): \"{inlineStyle}\"");
-            _inlineStyles[node] = inlineStyle;
+            Log.WriteLine($"  [HtmlLoader]  inline style detected ({inlineStyle.Length} props)");
+            node.InlineStyle = inlineStyle;
         }
 
         foreach (var attr in element.Attributes)
@@ -117,6 +115,17 @@ public sealed class HtmlLoader
         }
     }
 
+    private static void ApplyInlineStyles(BrowserElement root)
+    {
+        Log.WriteLine("[HtmlLoader] Applying inline styles...");
+
+        if (root.InlineStyle != null)
+            ApplyCssDeclaration(root, root.InlineStyle);
+
+        foreach (var child in root.Children)
+            ApplyInlineStyles(child);
+    }
+
     private static BrowserElement? FindBrowserElement(
         BrowserElement root, IElement target)
     {
@@ -133,7 +142,7 @@ public sealed class HtmlLoader
         return null;
     }
 
-    private void ApplyCssDeclaration(
+    private static void ApplyCssDeclaration(
         BrowserElement node, ICssStyleDeclaration style)
     {
         var fontSize = style.GetPropertyValue("font-size");
@@ -219,98 +228,6 @@ public sealed class HtmlLoader
                 node.Style.FlexDirection = Layout.FlexDirection.Column;
             else
                 node.Style.FlexDirection = Layout.FlexDirection.Row;
-        }
-    }
-
-    private void ApplyInlineStyles()
-    {
-        Log.WriteLine("[HtmlLoader] Applying inline styles...");
-
-        foreach (var (node, styleText) in _inlineStyles)
-        {
-            ApplyInlineStyle(node, styleText);
-        }
-
-        _inlineStyles.Clear();
-    }
-
-    private void ApplyInlineStyle(BrowserElement node, string style)
-    {
-        var props = style.Split(';', StringSplitOptions.RemoveEmptyEntries);
-
-        foreach (var prop in props)
-        {
-            var parts = prop.Split(':', 2);
-            if (parts.Length != 2) continue;
-
-            var name = parts[0].Trim().ToLowerInvariant();
-            var value = parts[1].Trim().ToLowerInvariant();
-
-            switch (name)
-            {
-                case "display":
-                    if (value == "flex")
-                        node.Style.Display = DisplayType.Flex;
-                    else if (value == "none")
-                        node.Style.Display = DisplayType.None;
-                    else if (value == "block")
-                        node.Style.Display = DisplayType.Block;
-                    else if (value == "inline")
-                        node.Style.Display = DisplayType.Inline;
-                    break;
-
-                case "flex-direction":
-                    if (value == "column")
-                        node.Style.FlexDirection = Layout.FlexDirection.Column;
-                    break;
-
-                case "font-size":
-                    if (float.TryParse(
-                            value.Replace("px", ""),
-                            out float fs))
-                        node.Style.FontSize = fs;
-                    break;
-
-                case "margin":
-                    if (float.TryParse(
-                            value.Replace("px", ""),
-                            out float m))
-                    {
-                        node.Style.MarginTop = m;
-                        node.Style.MarginBottom = m;
-                        node.Style.MarginLeft = m;
-                        node.Style.MarginRight = m;
-                    }
-                    break;
-
-                case "margin-top":
-                    if (float.TryParse(value.Replace("px", ""), out float mt))
-                        node.Style.MarginTop = mt;
-                    break;
-
-                case "margin-bottom":
-                    if (float.TryParse(value.Replace("px", ""), out float mb))
-                        node.Style.MarginBottom = mb;
-                    break;
-
-                case "margin-left":
-                    if (float.TryParse(value.Replace("px", ""), out float ml))
-                        node.Style.MarginLeft = ml;
-                    break;
-
-                case "margin-right":
-                    if (float.TryParse(value.Replace("px", ""), out float mr))
-                        node.Style.MarginRight = mr;
-                    break;
-
-                case "color":
-                    node.Style.Color = Css.CssColorParser.Parse(value);
-                    break;
-
-                case "background-color":
-                    node.Style.BackgroundColor = Css.CssColorParser.Parse(value);
-                    break;
-            }
         }
     }
 }

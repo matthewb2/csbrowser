@@ -1,3 +1,4 @@
+using AngleSharp.Css.Dom;
 using AngleSharp.Dom;
 using CSBrowser.JavaScript;
 using CSBrowser.Layout;
@@ -13,6 +14,7 @@ public sealed class BrowserElement : RefCounted
     public string ScriptContent { get; set; } = "";
 
     public IElement? Source;
+    public ICssStyleDeclaration? InlineStyle;
 
     public ComputedStyle Style = new();
 
