@@ -15,12 +15,12 @@ public sealed class LayoutEngine
 
     public LayoutNode Layout(BrowserElement root, float width)
     {
-        var layoutRoot = Build(root);
+        var layoutRoot = Build(root, null);
         LayoutBlock(layoutRoot, 0, 0, width);
         return layoutRoot;
     }
 
-    private LayoutNode Build(BrowserElement element)
+    public LayoutNode Build(BrowserElement element, TextAlignType? inheritedTextAlign = null)
     {
         var node = new LayoutNode();
         node.BrowserElement = element;
@@ -31,9 +31,14 @@ public sealed class LayoutEngine
 
         ApplyDefaultStyles(node);
 
+        node.ResolvedTextAlign =
+            element.Style.SetProperties.Contains("text-align")
+                ? element.Style.TextAlign
+                : inheritedTextAlign ?? element.Style.TextAlign;
+
         foreach (var child in element.Children)
         {
-            var childNode = Build(child);
+            var childNode = Build(child, node.ResolvedTextAlign);
             node.Children.Add(childNode);
         }
 
@@ -480,12 +485,24 @@ public sealed class LayoutEngine
             $"[Layout:table] <table> bounds=({node.Bounds.X:F0},{node.Bounds.Y:F0} {node.Bounds.Width:F0}x{node.Bounds.Height:F0}) rows={rowCount} cols={maxCols}");
     }
 
+    private static void ShiftBounds(LayoutNode node, float offsetX)
+    {
+        node.Bounds = new RectangleF(
+            node.Bounds.X + offsetX,
+            node.Bounds.Y,
+            node.Bounds.Width,
+            node.Bounds.Height);
+
+        foreach (var child in node.Children)
+            ShiftBounds(child, offsetX);
+    }
+
     private static void ApplyTextAlignLine(
         List<LayoutNode> items,
         float contentX, float contentWidth,
         LayoutNode? parent = null)
     {
-        if (parent == null || parent.Style.TextAlign == TextAlignType.Left)
+        if (parent == null || parent.ResolvedTextAlign == TextAlignType.Left)
             return;
 
         float totalWidth = 0;
@@ -498,25 +515,19 @@ public sealed class LayoutEngine
         if (excess <= 0)
             return;
 
-        float offset = parent.Style.TextAlign == TextAlignType.Center
+        float offset = parent.ResolvedTextAlign == TextAlignType.Center
             ? excess / 2
             : excess;
 
         foreach (var item in items)
-        {
-            item.Bounds = new RectangleF(
-                item.Bounds.X + offset,
-                item.Bounds.Y,
-                item.Bounds.Width,
-                item.Bounds.Height);
-        }
+            ShiftBounds(item, offset);
     }
 
     private static void ApplyTextAlignChild(
         LayoutNode parent, LayoutNode child,
         float contentX, float contentWidth)
     {
-        if (parent.Style.TextAlign == TextAlignType.Left)
+        if (parent.ResolvedTextAlign == TextAlignType.Left)
             return;
 
         if (child.Style.Display != DisplayType.Inline &&
@@ -527,15 +538,11 @@ public sealed class LayoutEngine
         if (excess <= 0)
             return;
 
-        float offset = parent.Style.TextAlign == TextAlignType.Center
+        float offset = parent.ResolvedTextAlign == TextAlignType.Center
             ? excess / 2
             : excess;
 
-        child.Bounds = new RectangleF(
-            child.Bounds.X + offset,
-            child.Bounds.Y,
-            child.Bounds.Width,
-            child.Bounds.Height);
+        ShiftBounds(child, offset);
     }
 
     private static float GetLineHeight(ComputedStyle style)
