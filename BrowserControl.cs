@@ -9,6 +9,9 @@ public sealed class BrowserControl
     : UserControl
 {
     private List<DisplayItem>? _displayList;
+    private QuadtreeNode? _hitTestTree;
+    private Bitmap? _renderCache;
+    private bool _cacheDirty = true;
     private BrowserElement? _document;
     private LayoutNode? _layoutRoot;
     private BrowserElement? _hoveredElement;
@@ -17,6 +20,23 @@ public sealed class BrowserControl
     {
         AutoScroll = true;
         DoubleBuffered = true;
+    }
+
+    protected override void Dispose(bool disposing)
+    {
+        if (disposing)
+        {
+            _renderCache?.Dispose();
+            _renderCache = null;
+        }
+        base.Dispose(disposing);
+    }
+
+    protected override void OnResize(EventArgs e)
+    {
+        base.OnResize(e);
+        InvalidateCache();
+        Invalidate();
     }
 
     public void LoadDocument(BrowserElement root)
@@ -59,12 +79,15 @@ public sealed class BrowserControl
         var builder = new DisplayListBuilder();
         _displayList = builder.Build(_layoutRoot);
 
+        BuildHitTestTree();
+
         if (_layoutRoot != null)
         {
             float docHeight = _layoutRoot.Bounds.Y + _layoutRoot.Bounds.Height + 20;
             AutoScrollMinSize = new Size(Width, (int)docHeight);
         }
 
+        InvalidateCache();
         Invalidate();
     }
 
@@ -92,20 +115,11 @@ public sealed class BrowserControl
 
     private void UpdateHoverState(Point pos)
     {
-        if (_displayList == null)
+        if (_hitTestTree == null)
             return;
 
-        BrowserElement? found = null;
-
-        for (int i = _displayList.Count - 1; i >= 0; i--)
-        {
-            var item = _displayList[i];
-            if (item.Element != null && item.Bounds.Contains(pos.X, pos.Y))
-            {
-                found = item.Element;
-                break;
-            }
-        }
+        var foundItem = _hitTestTree.HitTest(pos.X, pos.Y);
+        BrowserElement? found = foundItem?.Element;
 
         Log.WriteLine($"[Hover] hit element: {(found != null ? $"<{found.TagName}> id={found.Id} class={found.ClassName}" : "null")}");
 
@@ -180,22 +194,73 @@ public sealed class BrowserControl
 
         var builder = new DisplayListBuilder();
         _displayList = builder.Build(_layoutRoot);
+
+        BuildHitTestTree();
+        InvalidateCache();
         Invalidate();
+    }
+
+    private void InvalidateCache()
+    {
+        _cacheDirty = true;
+        if (_renderCache != null)
+        {
+            Log.WriteLine("[Cache] invalidated, disposing old bitmap");
+            _renderCache.Dispose();
+            _renderCache = null;
+        }
+    }
+
+    private void BuildHitTestTree()
+    {
+        float treeW = Math.Max(Width, 1);
+        float treeH = Math.Max(Math.Max(AutoScrollMinSize.Height, Height), 1);
+        _hitTestTree = new QuadtreeNode(new RectangleF(0, 0, treeW, treeH));
+
+        if (_displayList != null)
+        {
+            foreach (var item in _displayList)
+                _hitTestTree.Insert(item);
+        }
     }
 
     protected override void OnPaint(PaintEventArgs e)
     {
         base.OnPaint(e);
 
-        if (_displayList == null)
+        if (_displayList == null || _hitTestTree == null)
             return;
+
+        if (_cacheDirty)
+        {
+            Log.WriteLine("[Cache] rebuilding render cache...");
+
+            int cacheW = Math.Max(Width, 1);
+            int cacheH = Math.Max(AutoScrollMinSize.Height, Height);
+
+            _renderCache?.Dispose();
+            _renderCache = new Bitmap(cacheW, cacheH);
+
+            using var cacheGraphics = Graphics.FromImage(_renderCache);
+            cacheGraphics.Clear(BackColor);
+
+            var renderer = new GdiRenderer();
+            foreach (var item in _displayList)
+                renderer.RenderItem(cacheGraphics, item);
+
+            _cacheDirty = false;
+
+            Log.WriteLine($"[Cache] rebuilt: {cacheW}x{cacheH}, items={_displayList.Count}");
+        }
 
         e.Graphics.TranslateTransform(
             AutoScrollPosition.X,
             AutoScrollPosition.Y);
 
-        var renderer = new GdiRenderer();
-        renderer.Render(e.Graphics, _displayList);
+        if (_renderCache != null)
+        {
+            e.Graphics.DrawImageUnscaled(_renderCache, 0, 0);
+        }
     }
 
     private void DispatchMouseEvent(
@@ -203,68 +268,59 @@ public sealed class BrowserControl
         Point pos,
         MouseButtons button = MouseButtons.None)
     {
-        if (_displayList == null)
+        if (_hitTestTree == null)
             return;
 
-        for (int i = _displayList.Count - 1; i >= 0; i--)
-        {
-            var item = _displayList[i];
+        var hitItem = _hitTestTree.HitTest(pos.X, pos.Y);
+        if (hitItem?.Element == null)
+            return;
 
-            if (item.Element == null)
-                continue;
+        var element = hitItem.Element;
 
-            if (!item.Bounds.Contains(pos.X, pos.Y))
-                continue;
+        if (!element.EventListeners
+                .TryGetValue(eventType,
+                    out var listeners))
+            return;
 
-            var element = item.Element;
+        var screen = PointToScreen(pos);
 
-            if (!element.EventListeners
-                    .TryGetValue(eventType,
-                        out var listeners))
-                break;
-
-            var screen = PointToScreen(pos);
-
-            var jsEvent = new JsMouseEvent(
-                type: eventType,
-                clientX: pos.X,
-                clientY: pos.Y,
-                screenX: screen.X,
-                screenY: screen.Y,
-                button: button switch
-                {
-                    MouseButtons.Left => 0,
-                    MouseButtons.Middle => 1,
-                    MouseButtons.Right => 2,
-                    _ => 0
-                },
-                altKey: ModifierKeys
-                    .HasFlag(Keys.Alt),
-                ctrlKey: ModifierKeys
-                    .HasFlag(Keys.Control),
-                shiftKey: ModifierKeys
-                    .HasFlag(Keys.Shift),
-                metaKey: false);
-
-            var toRemove = new List<EventListenerInfo>();
-
-            foreach (var info in listeners)
+        var jsEvent = new JsMouseEvent(
+            type: eventType,
+            clientX: pos.X,
+            clientY: pos.Y,
+            screenX: screen.X,
+            screenY: screen.Y,
+            button: button switch
             {
-                if (info.Callback is
-                    Action<JsMouseEvent> cb)
-                {
-                    cb(jsEvent);
+                MouseButtons.Left => 0,
+                MouseButtons.Middle => 1,
+                MouseButtons.Right => 2,
+                _ => 0
+            },
+            altKey: ModifierKeys
+                .HasFlag(Keys.Alt),
+            ctrlKey: ModifierKeys
+                .HasFlag(Keys.Control),
+            shiftKey: ModifierKeys
+                .HasFlag(Keys.Shift),
+            metaKey: false);
 
-                    if (info.Once)
-                        toRemove.Add(info);
-                }
+        var toRemove = new List<EventListenerInfo>();
+
+        foreach (var info in listeners)
+        {
+            if (info.Callback is
+                Action<JsMouseEvent> cb)
+            {
+                cb(jsEvent);
+
+                if (info.Once)
+                    toRemove.Add(info);
             }
-
-            foreach (var info in toRemove)
-                listeners.Remove(info);
-
-            break;
         }
+
+        foreach (var info in toRemove)
+            listeners.Remove(info);
     }
 
     private void ExecuteDocumentScripts()
