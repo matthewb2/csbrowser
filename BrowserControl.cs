@@ -10,12 +10,18 @@ public sealed class BrowserControl
 {
     private List<DisplayItem>? _displayList;
     private QuadtreeNode? _hitTestTree;
+
     private Bitmap? _renderCache;
     private bool _cacheDirty = true;
     private BrowserElement? _document;
     private LayoutNode? _layoutRoot;
     private BrowserElement? _hoveredElement;
 
+    // 타일/노드별 렌더 캐시 관리 (영역별 캐시 맵 또는 리스트)
+    // 여기서는 뷰포트 컬링을 통해 화면에 보이는 DisplayItem들만 개별 캐시하거나
+    // 가시 영역 단위로 렌더링하도록 구성합니다.
+    private readonly Dictionary<DisplayItem, Bitmap> _itemRenderCaches = new();
+    
     public BrowserControl()
     {
         AutoScroll = true;
@@ -41,7 +47,7 @@ public sealed class BrowserControl
 
     public void LoadDocument(BrowserElement root)
     {
-        Log.WriteLine("[BrowserControl] LoadDocument...");
+        //Log.WriteLine("[BrowserControl] LoadDocument...");
 
         if (_document != null)
             _document.Unref();
@@ -243,6 +249,23 @@ public sealed class BrowserControl
 
             using var cacheGraphics = Graphics.FromImage(_renderCache);
             cacheGraphics.Clear(BackColor);
+
+
+            // Windows Forms의 현재 뷰포트(Visible Bounds) 계산
+            // AutoScrollPosition은 음수 값이므로 양수로 변환하여 뷰포트 사각형 구성
+            int viewX = -AutoScrollPosition.X;
+            int viewY = -AutoScrollPosition.Y;
+            int viewW = Math.Max(Width, 1);
+            int viewH = Math.Max(Height, 1);
+
+            RectangleF viewportRect = new RectangleF(viewX, viewY, viewW, viewH);
+
+            // 쿼드트리를 이용해 현재 뷰포트 영역에 겹치는(Intersects) 아이템들만 쿼리 (화면 노출 단위 컬링)
+            var visibleItems = new List<DisplayItem>();
+            _hitTestTree.Query(viewportRect, visibleItems);
+
+            Log.WriteLine($"[Paint] Viewport: {viewportRect}, Total Items: {_displayList.Count}, Visible Items: {visibleItems.Count}");
+
 
             var renderer = new GdiRenderer();
             foreach (var item in _displayList)

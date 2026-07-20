@@ -8,7 +8,7 @@ public sealed class DisplayListBuilder
 
     public List<DisplayItem> Build(LayoutNode root)
     {
-        Log.WriteLine("[DisplayListBuilder] Building display list...");
+        //Log.WriteLine("[DisplayListBuilder] Building display list...");
 
         var items = new List<DisplayItem>();
         Walk(root, items);
@@ -25,7 +25,7 @@ public sealed class DisplayListBuilder
 
         if (be != null && !string.IsNullOrEmpty(be.Text))
         {
-            Log.WriteLine($"  [Display] effective for <{be.TagName}>: TextDecoration={effectiveStyle.TextDecoration} Color={effectiveStyle.Color} State={be.State}");
+          //  Log.WriteLine($"  [Display] effective for <{be.TagName}>: TextDecoration={effectiveStyle.TextDecoration} Color={effectiveStyle.Color} State={be.State}");
         }
 
         if (be != null && !string.IsNullOrEmpty(be.ImagePath))
@@ -40,10 +40,11 @@ public sealed class DisplayListBuilder
             };
 
             items.Add(item);
-
+            /*
             Log.WriteLine(
                 $"  [Display] <img> at ({item.Bounds.X:F0},{item.Bounds.Y:F0}) " +
                 $"size=({item.Bounds.Width:F0}x{item.Bounds.Height:F0})");
+            */
         }
         else if (be != null && !string.IsNullOrEmpty(be.Text))
         {
@@ -59,11 +60,12 @@ public sealed class DisplayListBuilder
             };
 
             items.Add(item);
-
+            /*
             Log.WriteLine(
                 $"  [Display] \"{item.Text}\" at ({item.Bounds.X:F0},{item.Bounds.Y:F0}) " +
                 $"size=({item.Bounds.Width:F0}x{item.Bounds.Height:F0}) " +
                 $"font={item.FontSize} color={item.Color} decorate={item.TextDecoration}");
+            */
         }
 
         foreach (var child in node.Children)
@@ -77,7 +79,7 @@ public sealed class DisplayListBuilder
 
         if (!File.Exists(path))
         {
-            Log.WriteLine($"  [Display]  image not found: {path}");
+            //Log.WriteLine($"  [Display]  image not found: {path}");
             return null;
         }
 
@@ -85,7 +87,7 @@ public sealed class DisplayListBuilder
         {
             var img = Image.FromFile(path);
             _imageCache[path] = img;
-            Log.WriteLine($"  [Display]  image loaded: {path} ({img.Width}x{img.Height})");
+            //Log.WriteLine($"  [Display]  image loaded: {path} ({img.Width}x{img.Height})");
             return img;
         }
         catch (Exception ex)
