@@ -15,6 +15,10 @@ public sealed class BrowserControl
     private LayoutNode? _layoutRoot;
     private BrowserElement? _hoveredElement;
 
+    // 디버그용 렌더링 프레임 카운터 (로그 홍수 방지용 주기적 출력 등에 활용 가능)
+    private int _paintCount = 0;
+    private readonly List<DisplayItem> _capturedItems = new List<DisplayItem>(512);
+
     public BrowserControl()
     {
         AutoScroll = true;
@@ -29,11 +33,13 @@ public sealed class BrowserControl
     protected override void OnResize(EventArgs e)
     {
         base.OnResize(e);
+        Log.WriteLine($"[BrowserControl] OnResize: Control Size = {Width}x{Height}");
         Invalidate();
     }
 
     public void LoadDocument(BrowserElement root)
     {
+        Log.WriteLine("[BrowserControl] LoadDocument started.");
         if (_document != null)
             _document.Unref();
 
@@ -42,6 +48,7 @@ public sealed class BrowserControl
 
         ExecuteDocumentScripts();
         Relayout();
+        Log.WriteLine("[BrowserControl] LoadDocument finished.");
     }
 
     private void Relayout()
@@ -49,7 +56,7 @@ public sealed class BrowserControl
         if (_document == null)
             return;
 
-        Log.WriteLine("[BrowserControl] Relayout...");
+        Log.WriteLine("[BrowserControl] Relayout started. Width = " + Width);
 
         if (_layoutRoot != null)
         {
@@ -59,6 +66,7 @@ public sealed class BrowserControl
 
         if (_displayList != null)
         {
+            Log.WriteLine($"[BrowserControl] Disposing previous display list (Count: {_displayList.Count})");
             foreach (var item in _displayList)
                 item.Unref();
             _displayList = null;
@@ -70,12 +78,15 @@ public sealed class BrowserControl
         var builder = new DisplayListBuilder();
         _displayList = builder.Build(_layoutRoot);
 
+        Log.WriteLine($"[BrowserControl] Built new display list. Total DisplayItems: {_displayList?.Count ?? 0}");
+
         BuildHitTestTree();
 
         if (_layoutRoot != null)
         {
             float docHeight = _layoutRoot.Bounds.Y + _layoutRoot.Bounds.Height + 20;
             AutoScrollMinSize = new Size(Width, (int)docHeight);
+            Log.WriteLine($"[BrowserControl] Updated AutoScrollMinSize: {AutoScrollMinSize}");
         }
 
         Invalidate();
@@ -84,8 +95,8 @@ public sealed class BrowserControl
     protected override void OnMouseDown(MouseEventArgs e)
     {
         base.OnMouseDown(e);
-        // WinForms AutoScrollPosition.X/Y는 음수이므로, 문서 실제 좌표를 구하려면 빼주어야 합니다.
         var scrolled = new Point(e.X - AutoScrollPosition.X, e.Y - AutoScrollPosition.Y);
+        Log.WriteLine($"[Mouse] Down at Screen({e.X}, {e.Y}), Scroll({AutoScrollPosition.X}, {AutoScrollPosition.Y}) -> DocPos({scrolled.X}, {scrolled.Y}), Button: {e.Button}");
         DispatchMouseEvent("mousedown", scrolled, e.Button);
     }
 
@@ -101,6 +112,7 @@ public sealed class BrowserControl
     protected override void OnMouseLeave(EventArgs e)
     {
         base.OnMouseLeave(e);
+        Log.WriteLine("[Mouse] Leave control area.");
         ClearHoverState();
     }
 
@@ -118,8 +130,11 @@ public sealed class BrowserControl
         if (foundAncestor == oldAncestor)
             return;
 
+        Log.WriteLine($"[Hover] State change detected at DocPos({pos.X}, {pos.Y})");
+
         if (oldAncestor != null)
         {
+            Log.WriteLine($"[Hover] CLEAR hover on tag=<{oldAncestor.TagName}> id={oldAncestor.Id}");
             ClearHoverRecursive(oldAncestor);
             RebuildDisplayList();
         }
@@ -128,6 +143,7 @@ public sealed class BrowserControl
 
         if (foundAncestor != null)
         {
+            Log.WriteLine($"[Hover] SET hover on tag=<{foundAncestor.TagName}> id={foundAncestor.Id}");
             SetHoverRecursive(foundAncestor);
             RebuildDisplayList();
         }
@@ -158,6 +174,7 @@ public sealed class BrowserControl
                 RebuildDisplayList();
             }
             _hoveredElement = null;
+            Log.WriteLine("[Hover] Cleared all hover states due to leave.");
         }
     }
 
@@ -165,6 +182,8 @@ public sealed class BrowserControl
     {
         if (_layoutRoot == null)
             return;
+
+        Log.WriteLine("[BrowserControl] Rebuilding display list due to style/hover change...");
 
         if (_displayList != null)
         {
@@ -185,11 +204,16 @@ public sealed class BrowserControl
         float treeH = Math.Max(Math.Max(AutoScrollMinSize.Height, Height), 1);
         _hitTestTree = new QuadtreeNode(new RectangleF(0, 0, treeW, treeH));
 
+        int insertCount = 0;
         if (_displayList != null)
         {
             foreach (var item in _displayList)
+            {
                 _hitTestTree.Insert(item);
+                insertCount++;
+            }
         }
+        Log.WriteLine($"[Quadtree] HitTest tree built. Bounds: {treeW}x{treeH}, Inserted items: {insertCount}");
     }
 
     protected override void OnPaint(PaintEventArgs e)
@@ -197,10 +221,14 @@ public sealed class BrowserControl
         base.OnPaint(e);
 
         if (_displayList == null || _hitTestTree == null)
+        {
+            Log.WriteLine($"[Paint] Skipped. DisplayList={_displayList != null}, HitTestTree={_hitTestTree != null}");
             return;
+        }
+
+        _paintCount++;
 
         // 1. 현재 화면에 노출되는 뷰포트(Viewport) 영역 계산
-        // AutoScrollPosition은 음수이므로 양수로 변환하여 뷰포트 사각형 구성
         int viewX = -AutoScrollPosition.X;
         int viewY = -AutoScrollPosition.Y;
         int viewW = Math.Max(Width, 1);
@@ -209,20 +237,28 @@ public sealed class BrowserControl
         RectangleF viewportRect = new RectangleF(viewX, viewY, viewW, viewH);
 
         // 2. 쿼드트리를 이용해 현재 뷰포트 영역에 겹치는 아이템들만 고속 추출 (컬링)
-        var visibleItems = new List<DisplayItem>();
-        _hitTestTree.Query(viewportRect, visibleItems);
+        
+        _capturedItems.Clear();
+        _hitTestTree.Query(viewportRect, _capturedItems);
 
-        // 3. 스크롤 위치에 맞추어 그래픽스 좌표계 이동 (음수 스크롤 위치 그대로 적용)
+        // [디버깅 로그] 알고리즘이 올바르게 동작하는지 확인할 수 있는 상세 지표 출력
+        // (스크롤하거나 창 크기를 바꿀 때 전체 아이템 중 몇 개만 추려내어 그리는지 확인할 수 있습니다)
+        Log.WriteLine($"[Paint #{_paintCount}] Viewport: [X={viewX}, Y={viewY}, W={viewW}, H={viewH}] | " +
+                      $"Total Items: {_displayList.Count} | " +
+                      $"Visible (Culling Result): {_capturedItems.Count} items rendered " +
+                      $"({(double)_capturedItems.Count / Math.Max(_displayList.Count, 1) * 100:F1}% of total)");
+
+        // 3. 스크롤 위치에 맞추어 그래픽스 좌표계 이동
         e.Graphics.TranslateTransform(AutoScrollPosition.X, AutoScrollPosition.Y);
 
-        // 4. 텍스트 및 그래픽 품질 설정 (글자 뭉개짐 방지)
+        // 4. 텍스트 및 그래픽 품질 설정
         e.Graphics.TextRenderingHint = System.Drawing.Text.TextRenderingHint.ClearTypeGridFit;
         e.Graphics.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
 
         var renderer = new GdiRenderer();
 
-        // 5. 가시 영역의 아이템들을 화면에 직접 다이렉트 렌더링
-        foreach (var item in visibleItems)
+        // 5. 가시 영역의 아이템들만 화면에 직접 다이렉트 렌더링
+        foreach (var item in _capturedItems)
         {
             renderer.RenderItem(e.Graphics, item);
         }
@@ -248,6 +284,7 @@ public sealed class BrowserControl
             return;
 
         var screen = PointToScreen(pos);
+        Log.WriteLine($"[Event] Dispatched '{eventType}' to Element <{element.TagName}> id={element.Id}");
 
         var jsEvent = new JsMouseEvent(
             type: eventType,
@@ -293,7 +330,7 @@ public sealed class BrowserControl
         if (scripts.Count == 0)
             return;
 
-        Log.WriteLine("[BrowserControl] Executing scripts...");
+        Log.WriteLine("[Script] Executing document scripts...");
 
         var browserDoc = new BrowserDocument(_document);
         var jsDoc = new JsDocument(browserDoc);

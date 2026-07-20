@@ -38,17 +38,17 @@ public sealed class FlexLayoutEngine
         float y,
         float width)
     {
-        float cursorX = x + node.Style.MarginLeft;
+        float cursorX = x + node.Style.MarginLeft + node.Style.BorderLeft.Width;
         float maxHeight = 0f;
 
         foreach (var child in node.Children)
         {
             float childContentW = EstimateChildWidth(child);
-            _blockEngine.LayoutBlock(child, cursorX, y + node.Style.MarginTop, childContentW);
+            _blockEngine.LayoutBlock(child, cursorX, y + node.Style.MarginTop + node.Style.BorderTop.Width, childContentW);
 
             child.Bounds = new RectangleF(
                 cursorX + child.Style.MarginLeft,
-                y + node.Style.MarginTop + child.Style.MarginTop,
+                y + node.Style.MarginTop + node.Style.BorderTop.Width + child.Style.MarginTop,
                 childContentW,
                 child.Bounds.Height);
 

@@ -54,6 +54,11 @@ public static class CssColorParser
             return Color.FromArgb(r, g, b);
         }
 
+        if (value.StartsWith("#") && value.Length == 4)
+        {
+            value = $"#{value[1]}{value[1]}{value[2]}{value[2]}{value[3]}{value[3]}";
+        }
+
         try
         {
             return ColorTranslator.FromHtml(value);

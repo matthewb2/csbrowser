@@ -382,11 +382,71 @@ public sealed class HtmlLoader
             style.SetProperties.Add("padding-right");
         }
 
-        var color = css.GetPropertyValue("color");
-        if (!string.IsNullOrEmpty(color))
+        var fontFamily = css.GetPropertyValue("font-family");
+        if (!string.IsNullOrEmpty(fontFamily))
         {
-            Log.WriteLine($"    [Css] <{tagName}> color={color}");
-            style.Color = Css.CssColorParser.Parse(color);
+            // take the first font name, strip quotes
+            var firstFont = fontFamily
+                .Split(',')[0]
+                .Trim()
+                .Trim('\'', '"');
+
+            if (!string.IsNullOrEmpty(firstFont))
+            {
+                Log.WriteLine($"    [Css] <{tagName}> font-family={firstFont}");
+                style.FontFamily = firstFont;
+                style.SetProperties.Add("font-family");
+            }
+        }
+
+        var lineHeight = css.GetPropertyValue("line-height");
+        if (!string.IsNullOrEmpty(lineHeight))
+        {
+            if (lineHeight.Equals("normal",
+                    StringComparison.OrdinalIgnoreCase))
+            {
+                style.LineHeight = 0;
+                style.SetProperties.Add("line-height");
+            }
+            else if (float.TryParse(
+                lineHeight.Replace("px", ""),
+                out float lh))
+            {
+                Log.WriteLine($"    [Css] <{tagName}> line-height={lh}");
+                style.LineHeight = lh;
+                style.SetProperties.Add("line-height");
+            }
+            else if (lineHeight.EndsWith("%") &&
+                     float.TryParse(
+                         lineHeight.TrimEnd('%'),
+                         out float lhp))
+            {
+                Log.WriteLine($"    [Css] <{tagName}> line-height={lhp}%");
+                style.LineHeight = lhp / 100f;
+                style.SetProperties.Add("line-height");
+            }
+        }
+
+        ParseBorder(style, tagName, css);
+
+        var textAlign = css.GetPropertyValue("text-align");
+        if (!string.IsNullOrEmpty(textAlign))
+        {
+            var resolved = TextAlignType.Left;
+            if (textAlign.Equals("center", StringComparison.OrdinalIgnoreCase))
+                resolved = TextAlignType.Center;
+            else if (textAlign.Equals("right", StringComparison.OrdinalIgnoreCase))
+                resolved = TextAlignType.Right;
+            Log.WriteLine($"    [Css] <{tagName}> text-align={textAlign} -> resolved={resolved} (before={style.TextAlign})");
+            style.TextAlign = resolved;
+            style.SetProperties.Add("text-align");
+        }
+
+        var colorVal = css.GetPropertyValue("color");
+        if (!string.IsNullOrEmpty(colorVal))
+        {
+            Log.WriteLine($"    [Css] <{tagName}> color={colorVal}");
+            style.Color = Css.CssColorParser.Parse(colorVal);
             style.SetProperties.Add("color");
         }
 
@@ -467,5 +527,150 @@ public sealed class HtmlLoader
             style.Height = ch;
             style.SetProperties.Add("height");
         }
+    }
+
+    private static void ParseBorder(
+        ComputedStyle style,
+        string tagName,
+        ICssStyleDeclaration css)
+    {
+        // border shorthand (all sides)
+        var border = css.GetPropertyValue("border");
+        if (!string.IsNullOrEmpty(border) &&
+            TryParseBorderValue(border,
+                out var bw, out var bs, out var bc))
+        {
+            Log.WriteLine($"    [Css] <{tagName}> border={bw} {bs} {bc}");
+            ApplyBorderSide(style, "all", bw, bs, bc);
+            style.SetProperties.Add("border");
+        }
+
+        // individual side shorthands
+        foreach (var side in new[] {
+            "top", "bottom", "left", "right" })
+        {
+            var val = css.GetPropertyValue(
+                $"border-{side}");
+
+            if (!string.IsNullOrEmpty(val) &&
+                TryParseBorderValue(val,
+                    out var w, out var s, out var c))
+            {
+                Log.WriteLine(
+                    $"    [Css] <{tagName}> border-{side}={w} {s} {c}");
+                ApplyBorderSide(style, side, w, s, c);
+                style.SetProperties.Add($"border-{side}");
+            }
+        }
+    }
+
+    private static bool TryParseBorderValue(
+        string value,
+        out float width,
+        out Layout.BorderStyle style,
+        out Color color)
+    {
+        width = 0;
+        style = Layout.BorderStyle.None;
+        color = Color.Black;
+
+        var tokens = SplitBorderTokens(value);
+
+        foreach (var token in tokens)
+        {
+            if (token.EndsWith("px", StringComparison.OrdinalIgnoreCase) &&
+                float.TryParse(
+                    token.AsSpan(0, token.Length - 2),
+                    out float w))
+            {
+                width = w;
+            }
+            else
+            {
+                var lower = token.ToLowerInvariant();
+                if (lower is "solid" or "dashed" or "dotted")
+                {
+                    style = lower switch
+                    {
+                        "solid" => Layout.BorderStyle.Solid,
+                        "dashed" => Layout.BorderStyle.Dashed,
+                        "dotted" => Layout.BorderStyle.Dotted,
+                        _ => Layout.BorderStyle.None
+                    };
+                }
+                else if (lower != "none")
+                {
+                    color = Css.CssColorParser.Parse(token);
+                }
+            }
+        }
+
+        return true;
+    }
+
+    private static List<string> SplitBorderTokens(string value)
+    {
+        var tokens = new List<string>();
+        int depth = 0;
+        int start = -1;
+
+        for (int i = 0; i < value.Length; i++)
+        {
+            char c = value[i];
+
+            if (c == '(')
+                depth++;
+            else if (c == ')')
+                depth--;
+
+            if (c == ' ' && depth == 0)
+            {
+                if (start >= 0)
+                {
+                    tokens.Add(value[start..i]);
+                    start = -1;
+                }
+            }
+            else if (start < 0)
+            {
+                start = i;
+            }
+        }
+
+        if (start >= 0)
+            tokens.Add(value[start..]);
+
+        return tokens;
+    }
+
+    private static void ApplyBorderSide(
+        ComputedStyle style,
+        string side,
+        float width,
+        Layout.BorderStyle borderStyle,
+        Color color)
+    {
+        var apply = (ref BorderSide s) =>
+        {
+            s.Width = width;
+            s.Style = borderStyle;
+            s.Color = color;
+        };
+
+        if (side == "all")
+        {
+            apply(ref style.BorderTop);
+            apply(ref style.BorderBottom);
+            apply(ref style.BorderLeft);
+            apply(ref style.BorderRight);
+        }
+        else if (side == "top")
+            apply(ref style.BorderTop);
+        else if (side == "bottom")
+            apply(ref style.BorderBottom);
+        else if (side == "left")
+            apply(ref style.BorderLeft);
+        else if (side == "right")
+            apply(ref style.BorderRight);
     }
 }

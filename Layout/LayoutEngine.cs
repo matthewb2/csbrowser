@@ -213,8 +213,8 @@ public sealed class LayoutEngine
             return;
         }
 
-        float currentY = y + node.Style.MarginTop + node.Style.PaddingTop;
-        float contentHeight = node.Style.FontSize + 10;
+        float currentY = y + node.Style.MarginTop + node.Style.BorderTop.Width + node.Style.PaddingTop;
+        float contentHeight = GetLineHeight(node.Style);
 
         bool hasInlineChildren = false;
         bool hasBlockChildren = false;
@@ -241,6 +241,8 @@ public sealed class LayoutEngine
         float marginRight = node.Style.MarginRight;
         float paddingLeft = node.Style.PaddingLeft;
         float paddingRight = node.Style.PaddingRight;
+        float borderLeft = node.Style.BorderLeft.Width;
+        float borderRight = node.Style.BorderRight.Width;
 
         float boundsWidth;
         float contentWidth;
@@ -248,15 +250,15 @@ public sealed class LayoutEngine
         if (node.Style.BoxSizing == BoxSizingType.BorderBox)
         {
             boundsWidth = outerWidth;
-            contentWidth = outerWidth - paddingLeft - paddingRight;
+            contentWidth = outerWidth - paddingLeft - paddingRight - borderLeft - borderRight;
         }
         else
         {
             boundsWidth = outerWidth;
-            contentWidth = outerWidth - paddingLeft - paddingRight;
+            contentWidth = outerWidth - paddingLeft - paddingRight - borderLeft - borderRight;
         }
 
-        float contentX = x + node.Style.MarginLeft + node.Style.PaddingLeft;
+        float contentX = x + node.Style.MarginLeft + borderLeft + node.Style.PaddingLeft;
 
         if (hasInlineChildren && !hasBlockChildren)
         {
@@ -265,6 +267,7 @@ public sealed class LayoutEngine
             float lineHeight = 0;
             float maxX = contentX + contentWidth;
 
+            var inlineItems = new List<LayoutNode>();
             foreach (var child in node.Children)
             {
                 if (child.Style.Display == DisplayType.None)
@@ -274,12 +277,17 @@ public sealed class LayoutEngine
 
                 if (currentX + child.Bounds.Width > maxX && currentX > contentX)
                 {
+                    ApplyTextAlignLine(inlineItems, contentX, contentWidth, parent: node);
+                    inlineItems.Clear();
+
                     currentX = contentX;
                     lineY += lineHeight + child.Style.MarginTop;
                     lineHeight = 0;
 
                     LayoutBlock(child, currentX, lineY, contentWidth);
                 }
+
+                inlineItems.Add(child);
 
                 currentX += child.Bounds.Width
                             + child.Style.MarginLeft
@@ -289,6 +297,8 @@ public sealed class LayoutEngine
                     lineHeight = child.Bounds.Height;
             }
 
+            ApplyTextAlignLine(inlineItems, contentX, contentWidth, parent: node);
+
             contentHeight = lineY + lineHeight - y;
         }
         else
@@ -296,6 +306,9 @@ public sealed class LayoutEngine
             foreach (var child in node.Children)
             {
                 LayoutBlock(child, contentX, currentY, contentWidth);
+
+                ApplyTextAlignChild(node, child, contentX, contentWidth);
+
                 currentY += child.Bounds.Height
                             + child.Style.MarginTop
                             + child.Style.MarginBottom;
@@ -308,7 +321,8 @@ public sealed class LayoutEngine
             }
         }
 
-        contentHeight += node.Style.PaddingTop + node.Style.PaddingBottom;
+        contentHeight += node.Style.PaddingTop + node.Style.PaddingBottom
+                         + node.Style.BorderTop.Width + node.Style.BorderBottom.Width;
 
         if (node.Style.Height.HasValue && node.Style.Height.Value > contentHeight)
             contentHeight = node.Style.Height.Value;
@@ -370,7 +384,7 @@ public sealed class LayoutEngine
         else
         {
             contentWidth = EstimateInlineWidth(node);
-            contentHeight = node.Style.FontSize + 4;
+            contentHeight = GetLineHeight(node.Style);
         }
 
         node.Bounds = new RectangleF(x, y, contentWidth, contentHeight);
@@ -464,5 +478,70 @@ public sealed class LayoutEngine
 
         Log.WriteLine(
             $"[Layout:table] <table> bounds=({node.Bounds.X:F0},{node.Bounds.Y:F0} {node.Bounds.Width:F0}x{node.Bounds.Height:F0}) rows={rowCount} cols={maxCols}");
+    }
+
+    private static void ApplyTextAlignLine(
+        List<LayoutNode> items,
+        float contentX, float contentWidth,
+        LayoutNode? parent = null)
+    {
+        if (parent == null || parent.Style.TextAlign == TextAlignType.Left)
+            return;
+
+        float totalWidth = 0;
+        foreach (var item in items)
+            totalWidth += item.Bounds.Width
+                          + item.Style.MarginLeft
+                          + item.Style.MarginRight;
+
+        float excess = contentWidth - totalWidth;
+        if (excess <= 0)
+            return;
+
+        float offset = parent.Style.TextAlign == TextAlignType.Center
+            ? excess / 2
+            : excess;
+
+        foreach (var item in items)
+        {
+            item.Bounds = new RectangleF(
+                item.Bounds.X + offset,
+                item.Bounds.Y,
+                item.Bounds.Width,
+                item.Bounds.Height);
+        }
+    }
+
+    private static void ApplyTextAlignChild(
+        LayoutNode parent, LayoutNode child,
+        float contentX, float contentWidth)
+    {
+        if (parent.Style.TextAlign == TextAlignType.Left)
+            return;
+
+        if (child.Style.Display != DisplayType.Inline &&
+            child.Style.Display != DisplayType.None)
+            return;
+
+        float excess = contentWidth - child.Bounds.Width;
+        if (excess <= 0)
+            return;
+
+        float offset = parent.Style.TextAlign == TextAlignType.Center
+            ? excess / 2
+            : excess;
+
+        child.Bounds = new RectangleF(
+            child.Bounds.X + offset,
+            child.Bounds.Y,
+            child.Bounds.Width,
+            child.Bounds.Height);
+    }
+
+    private static float GetLineHeight(ComputedStyle style)
+    {
+        if (style.LineHeight > 0)
+            return style.LineHeight;
+        return style.FontSize + 4;
     }
 }

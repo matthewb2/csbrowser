@@ -8,14 +8,12 @@ public sealed class DisplayListBuilder
 
     public List<DisplayItem> Build(LayoutNode root)
     {
-        //Log.WriteLine("[DisplayListBuilder] Building display list...");
-
         var items = new List<DisplayItem>();
-        Walk(root, items);
+        Walk(root, items, TextAlignType.Left);
         return items;
     }
 
-    private void Walk(LayoutNode node, List<DisplayItem> items)
+    private void Walk(LayoutNode node, List<DisplayItem> items, TextAlignType inheritedTextAlign)
     {
         if (node.Style.Display == DisplayType.None)
             return;
@@ -23,10 +21,16 @@ public sealed class DisplayListBuilder
         var be = node.BrowserElement;
         var effectiveStyle = be?.EffectiveStyle ?? node.Style;
 
+        var usedTextAlign = effectiveStyle.TextAlign;
+        if (usedTextAlign == TextAlignType.Left)
+            usedTextAlign = inheritedTextAlign;
+
         if (be != null && !string.IsNullOrEmpty(be.Text))
         {
-          //  Log.WriteLine($"  [Display] effective for <{be.TagName}>: TextDecoration={effectiveStyle.TextDecoration} Color={effectiveStyle.Color} State={be.State}");
+            Log.WriteLine($"  [Display] <{be.TagName}> text='{be.Text}' styleTextAlign={effectiveStyle.TextAlign} inheritedTextAlign={inheritedTextAlign} usedTextAlign={usedTextAlign} font-size={effectiveStyle.FontSize}");
         }
+
+        var childInherited = usedTextAlign;
 
         if (be != null && !string.IsNullOrEmpty(be.ImagePath))
         {
@@ -36,15 +40,22 @@ public sealed class DisplayListBuilder
                 Image = LoadImage(be.ImagePath),
                 Bounds = node.Bounds,
                 BackgroundColor = effectiveStyle.BackgroundColor,
-                Element = be
+                Element = be,
+                BorderTopWidth = effectiveStyle.BorderTop.Width,
+                BorderTopStyle = effectiveStyle.BorderTop.Style,
+                BorderTopColor = effectiveStyle.BorderTop.Color,
+                BorderBottomWidth = effectiveStyle.BorderBottom.Width,
+                BorderBottomStyle = effectiveStyle.BorderBottom.Style,
+                BorderBottomColor = effectiveStyle.BorderBottom.Color,
+                BorderLeftWidth = effectiveStyle.BorderLeft.Width,
+                BorderLeftStyle = effectiveStyle.BorderLeft.Style,
+                BorderLeftColor = effectiveStyle.BorderLeft.Color,
+                BorderRightWidth = effectiveStyle.BorderRight.Width,
+                BorderRightStyle = effectiveStyle.BorderRight.Style,
+                BorderRightColor = effectiveStyle.BorderRight.Color,
             };
 
             items.Add(item);
-            /*
-            Log.WriteLine(
-                $"  [Display] <img> at ({item.Bounds.X:F0},{item.Bounds.Y:F0}) " +
-                $"size=({item.Bounds.Width:F0}x{item.Bounds.Height:F0})");
-            */
         }
         else if (be != null && !string.IsNullOrEmpty(be.Text))
         {
@@ -53,23 +64,31 @@ public sealed class DisplayListBuilder
                 Text = be.Text,
                 Bounds = node.Bounds,
                 FontSize = effectiveStyle.FontSize,
+                FontFamily = effectiveStyle.FontFamily,
                 Color = effectiveStyle.Color,
                 BackgroundColor = effectiveStyle.BackgroundColor,
                 TextDecoration = effectiveStyle.TextDecoration,
-                Element = be
+                TextAlign = usedTextAlign,
+                Element = be,
+                BorderTopWidth = effectiveStyle.BorderTop.Width,
+                BorderTopStyle = effectiveStyle.BorderTop.Style,
+                BorderTopColor = effectiveStyle.BorderTop.Color,
+                BorderBottomWidth = effectiveStyle.BorderBottom.Width,
+                BorderBottomStyle = effectiveStyle.BorderBottom.Style,
+                BorderBottomColor = effectiveStyle.BorderBottom.Color,
+                BorderLeftWidth = effectiveStyle.BorderLeft.Width,
+                BorderLeftStyle = effectiveStyle.BorderLeft.Style,
+                BorderLeftColor = effectiveStyle.BorderLeft.Color,
+                BorderRightWidth = effectiveStyle.BorderRight.Width,
+                BorderRightStyle = effectiveStyle.BorderRight.Style,
+                BorderRightColor = effectiveStyle.BorderRight.Color,
             };
 
             items.Add(item);
-            /*
-            Log.WriteLine(
-                $"  [Display] \"{item.Text}\" at ({item.Bounds.X:F0},{item.Bounds.Y:F0}) " +
-                $"size=({item.Bounds.Width:F0}x{item.Bounds.Height:F0}) " +
-                $"font={item.FontSize} color={item.Color} decorate={item.TextDecoration}");
-            */
         }
 
         foreach (var child in node.Children)
-            Walk(child, items);
+            Walk(child, items, childInherited);
     }
 
     private static Image? LoadImage(string path)
