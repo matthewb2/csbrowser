@@ -9,7 +9,6 @@ public sealed class LayoutNode : RefCounted
     public BrowserElement? BrowserElement;
     public RectangleF Bounds;
     public ComputedStyle Style = null!;
-    public TextAlignType ResolvedTextAlign;
     public List<LayoutNode> Children = new();
 
     protected override void Cleanup()

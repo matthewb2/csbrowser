@@ -1,6 +1,10 @@
 using AngleSharp.Dom;
 using AngleSharp.Html.Dom;
 using CSBrowser.Dom;
+using System;
+using System.Collections.Generic;
+using System.Drawing;
+using System.IO;
 
 namespace CSBrowser.Layout;
 
@@ -15,46 +19,103 @@ public sealed class LayoutEngine
 
     public LayoutNode Layout(BrowserElement root, float width)
     {
+        // �ֻ��� ���� �θ� ��Ÿ���� �����Ƿ� null ����
         var layoutRoot = Build(root, null);
         LayoutBlock(layoutRoot, 0, 0, width);
         return layoutRoot;
     }
 
-    public LayoutNode Build(BrowserElement element, TextAlignType? inheritedTextAlign = null)
+    private static ComputedStyle ComputeStyleWithInheritance(
+        ComputedStyle elementStyle, ComputedStyle? parentStyle)
+    {
+        var resolved = new ComputedStyle();
+
+        // Non-inherited properties: always use the element's own value
+        resolved.Display = elementStyle.Display;
+        resolved.BoxSizing = elementStyle.BoxSizing;
+        resolved.Width = elementStyle.Width;
+        resolved.Height = elementStyle.Height;
+        resolved.MarginTop = elementStyle.MarginTop;
+        resolved.MarginBottom = elementStyle.MarginBottom;
+        resolved.MarginLeft = elementStyle.MarginLeft;
+        resolved.MarginRight = elementStyle.MarginRight;
+        resolved.PaddingTop = elementStyle.PaddingTop;
+        resolved.PaddingBottom = elementStyle.PaddingBottom;
+        resolved.PaddingLeft = elementStyle.PaddingLeft;
+        resolved.PaddingRight = elementStyle.PaddingRight;
+        resolved.BorderTop = elementStyle.BorderTop;
+        resolved.BorderBottom = elementStyle.BorderBottom;
+        resolved.BorderLeft = elementStyle.BorderLeft;
+        resolved.BorderRight = elementStyle.BorderRight;
+        resolved.BackgroundColor = elementStyle.BackgroundColor;
+        resolved.TextDecoration = elementStyle.TextDecoration;
+        resolved.FlexDirection = elementStyle.FlexDirection;
+
+        // Inherited properties: use element's value if explicitly set, otherwise inherit from parent
+        resolved.Color = elementStyle.SetProperties.Contains("color")
+            ? elementStyle.Color
+            : parentStyle?.Color ?? Color.Black;
+
+        resolved.FontFamily = elementStyle.SetProperties.Contains("font-family")
+            ? elementStyle.FontFamily
+            : parentStyle?.FontFamily ?? "Arial";
+
+        resolved.FontSize = elementStyle.SetProperties.Contains("font-size")
+            ? elementStyle.FontSize
+            : parentStyle?.FontSize ?? 16f;
+
+        if (elementStyle.SetProperties.Contains("line-height"))
+        {
+            resolved.LineHeight = elementStyle.LineHeight;
+            resolved.LineHeightIsMultiplier = elementStyle.LineHeightIsMultiplier;
+        }
+        else
+        {
+            resolved.LineHeight = parentStyle?.LineHeight ?? 0;
+            resolved.LineHeightIsMultiplier = parentStyle?.LineHeightIsMultiplier ?? false;
+        }
+
+        resolved.TextAlign = elementStyle.SetProperties.Contains("text-align")
+            ? elementStyle.TextAlign
+            : parentStyle?.TextAlign ?? TextAlignType.Left;
+
+        resolved.SetProperties = new HashSet<string>(elementStyle.SetProperties);
+
+        return resolved;
+    }
+
+    public LayoutNode Build(BrowserElement element, ComputedStyle? parentStyle = null)
     {
         var node = new LayoutNode();
         node.BrowserElement = element;
         element.Ref();
 
         node.Element = element.Source;
-        node.Style = element.Style;
 
-        ApplyDefaultStyles(node);
-
-        node.ResolvedTextAlign =
-            element.Style.SetProperties.Contains("text-align")
-                ? element.Style.TextAlign
-                : inheritedTextAlign ?? element.Style.TextAlign;
+        // Create a fresh clone with inheritance — never mutate the original element.Style
+        var inheritedStyle = ComputeStyleWithInheritance(element.Style, parentStyle);
+        ApplyDefaultStyles(inheritedStyle, node.Element);
+        node.Style = inheritedStyle;
 
         foreach (var child in element.Children)
         {
-            var childNode = Build(child, node.ResolvedTextAlign);
+            var childNode = Build(child, node.Style);
             node.Children.Add(childNode);
         }
 
         return node;
     }
 
-    private void ApplyDefaultStyles(LayoutNode node)
+    private void ApplyDefaultStyles(ComputedStyle style, IElement? element)
     {
-        if (node.Element == null)
+        if (element == null)
             return;
 
-        switch (node.Element)
+        switch (element)
         {
             case IHtmlHeadingElement:
-                var level = node.Element.LocalName;
-                node.Style.FontSize = level switch
+                var level = element.LocalName;
+                style.FontSize = level switch
                 {
                     "h1" => 32,
                     "h2" => 24,
@@ -64,111 +125,105 @@ public sealed class LayoutEngine
                     "h6" => 10.7f,
                     _ => 16
                 };
-                if (node.Style.MarginTop == 0)
-                    node.Style.MarginTop = node.Style.FontSize * 0.67f;
-                if (node.Style.MarginBottom == 0)
-                    node.Style.MarginBottom = node.Style.FontSize * 0.67f;
+                if (style.MarginTop == 0)
+                    style.MarginTop = style.FontSize * 0.67f;
+                if (style.MarginBottom == 0)
+                    style.MarginBottom = style.FontSize * 0.67f;
                 break;
 
             case IHtmlParagraphElement:
-                if (node.Style.MarginTop == 0)
-                    node.Style.MarginTop = 16;
-                if (node.Style.MarginBottom == 0)
-                    node.Style.MarginBottom = 16;
+                if (style.MarginTop == 0)
+                    style.MarginTop = 16;
+                if (style.MarginBottom == 0)
+                    style.MarginBottom = 16;
                 break;
 
             case IHtmlListItemElement:
-                if (node.Style.MarginTop == 0)
-                    node.Style.MarginTop = 4;
-                if (node.Style.MarginBottom == 0)
-                    node.Style.MarginBottom = 4;
+                if (style.MarginTop == 0)
+                    style.MarginTop = 4;
+                if (style.MarginBottom == 0)
+                    style.MarginBottom = 4;
                 break;
 
             case IHtmlUnorderedListElement:
             case IHtmlOrderedListElement:
-                if (node.Style.MarginTop == 0)
-                    node.Style.MarginTop = 16;
-                if (node.Style.MarginBottom == 0)
-                    node.Style.MarginBottom = 16;
-                if (node.Style.MarginLeft == 0)
-                    node.Style.MarginLeft = 40;
+                if (style.MarginTop == 0)
+                    style.MarginTop = 16;
+                if (style.MarginBottom == 0)
+                    style.MarginBottom = 16;
+                if (style.MarginLeft == 0)
+                    style.MarginLeft = 40;
                 break;
 
             case IHtmlTableElement:
-                node.Style.Display = DisplayType.Block;
-                if (node.Style.MarginTop == 0)
-                    node.Style.MarginTop = 16;
-                if (node.Style.MarginBottom == 0)
-                    node.Style.MarginBottom = 16;
+                style.Display = DisplayType.Block;
+                if (style.MarginTop == 0)
+                    style.MarginTop = 16;
+                if (style.MarginBottom == 0)
+                    style.MarginBottom = 16;
                 break;
 
             case IHtmlTableRowElement:
-                node.Style.Display = DisplayType.Flex;
-                node.Style.FlexDirection = FlexDirection.Row;
+                style.Display = DisplayType.Flex;
+                style.FlexDirection = FlexDirection.Row;
                 break;
 
             case IHtmlTableCellElement:
-                node.Style.Display = DisplayType.Block;
+                style.Display = DisplayType.Block;
                 break;
 
             case IHtmlSpanElement:
-                node.Style.Display = DisplayType.Inline;
-                break;
-
             case IHtmlImageElement:
-                node.Style.Display = DisplayType.Inline;
+                style.Display = DisplayType.Inline;
                 break;
 
             default:
-                ApplyDefaultStylesByLocalName(node);
+                ApplyDefaultStylesByLocalName(style, element);
                 break;
         }
 
-        if (node.Element.LocalName is "body")
+        if (element.LocalName is "body")
         {
-            if (node.Style.MarginTop == 0)
-                node.Style.MarginTop = 8;
-            if (node.Style.MarginLeft == 0)
-                node.Style.MarginLeft = 8;
+            if (style.MarginTop == 0)
+                style.MarginTop = 8;
+            if (style.MarginLeft == 0)
+                style.MarginLeft = 8;
         }
     }
 
-    private void ApplyDefaultStylesByLocalName(LayoutNode node)
+    private void ApplyDefaultStylesByLocalName(ComputedStyle style, IElement element)
     {
-        if (node.Element == null)
-            return;
-
-        var local = node.Element.LocalName;
+        var local = element.LocalName;
 
         switch (local)
         {
             case "br":
-                node.Style.Display = DisplayType.Inline;
+                style.Display = DisplayType.Inline;
                 break;
 
             case "hr":
-                if (node.Style.MarginTop == 0)
-                    node.Style.MarginTop = 8;
-                if (node.Style.MarginBottom == 0)
-                    node.Style.MarginBottom = 8;
+                if (style.MarginTop == 0)
+                    style.MarginTop = 8;
+                if (style.MarginBottom == 0)
+                    style.MarginBottom = 8;
                 break;
 
             case "blockquote":
-                if (node.Style.MarginTop == 0)
-                    node.Style.MarginTop = 16;
-                if (node.Style.MarginBottom == 0)
-                    node.Style.MarginBottom = 16;
-                if (node.Style.MarginLeft == 0)
-                    node.Style.MarginLeft = 40;
-                if (node.Style.MarginRight == 0)
-                    node.Style.MarginRight = 40;
+                if (style.MarginTop == 0)
+                    style.MarginTop = 16;
+                if (style.MarginBottom == 0)
+                    style.MarginBottom = 16;
+                if (style.MarginLeft == 0)
+                    style.MarginLeft = 40;
+                if (style.MarginRight == 0)
+                    style.MarginRight = 40;
                 break;
 
             case "pre":
-                if (node.Style.MarginTop == 0)
-                    node.Style.MarginTop = 16;
-                if (node.Style.MarginBottom == 0)
-                    node.Style.MarginBottom = 16;
+                if (style.MarginTop == 0)
+                    style.MarginTop = 16;
+                if (style.MarginBottom == 0)
+                    style.MarginBottom = 16;
                 break;
 
             case "span":
@@ -182,7 +237,7 @@ public sealed class LayoutEngine
             case "small":
             case "sub":
             case "sup":
-                node.Style.Display = DisplayType.Inline;
+                style.Display = DisplayType.Inline;
                 break;
         }
     }
@@ -190,9 +245,6 @@ public sealed class LayoutEngine
     public void LayoutBlock(LayoutNode node, float x, float y, float width)
     {
         var tagName = node.Element?.TagName ?? "?";
-
-        Log.WriteLine(
-            $"[Layout] <{tagName}> at ({x},{y}) w={width} disp={node.Style.Display}");
 
         if (node.Style.Display == DisplayType.None)
         {
@@ -225,22 +277,13 @@ public sealed class LayoutEngine
         bool hasBlockChildren = false;
         foreach (var child in node.Children)
         {
-            if (child.Style.Display == DisplayType.Inline ||
-                child.Style.Display == DisplayType.None)
+            if (child.Style.Display == DisplayType.Inline || child.Style.Display == DisplayType.None)
                 hasInlineChildren = true;
             else
                 hasBlockChildren = true;
         }
 
-        float outerWidth;
-        if (node.Style.Width.HasValue)
-        {
-            outerWidth = node.Style.Width.Value;
-        }
-        else
-        {
-            outerWidth = width;
-        }
+        float outerWidth = node.Style.Width.HasValue ? node.Style.Width.Value : width;
 
         float marginLeft = node.Style.MarginLeft;
         float marginRight = node.Style.MarginRight;
@@ -252,15 +295,25 @@ public sealed class LayoutEngine
         float boundsWidth;
         float contentWidth;
 
+        // 3. [����] BoxSizing ǥ�� ���� �б� ����
         if (node.Style.BoxSizing == BoxSizingType.BorderBox)
         {
             boundsWidth = outerWidth;
-            contentWidth = outerWidth - paddingLeft - paddingRight - borderLeft - borderRight;
+            contentWidth = Math.Max(0, outerWidth - paddingLeft - paddingRight - borderLeft - borderRight);
         }
         else
         {
-            boundsWidth = outerWidth;
-            contentWidth = outerWidth - paddingLeft - paddingRight - borderLeft - borderRight;
+            // ContentBox ���� �� ��
+            if (node.Style.Width.HasValue)
+            {
+                contentWidth = outerWidth;
+                boundsWidth = outerWidth + paddingLeft + paddingRight + borderLeft + borderRight;
+            }
+            else
+            {
+                boundsWidth = outerWidth;
+                contentWidth = Math.Max(0, outerWidth - paddingLeft - paddingRight - borderLeft - borderRight);
+            }
         }
 
         float contentX = x + node.Style.MarginLeft + borderLeft + node.Style.PaddingLeft;
@@ -278,32 +331,35 @@ public sealed class LayoutEngine
                 if (child.Style.Display == DisplayType.None)
                     continue;
 
+                // ���̾ƿ��� ���� 1ȸ�� �����Ͽ� Bounds�� ũ�⸦ �޾ƿɴϴ�.
                 LayoutBlock(child, currentX, lineY, contentWidth);
 
+                // 4. [����] ���̾ƿ� �ߺ� ȣ�� ���� �� ShiftBoundsX/Y ��ȯ ����
                 if (currentX + child.Bounds.Width > maxX && currentX > contentX)
                 {
                     ApplyTextAlignLine(inlineItems, contentX, contentWidth, parent: node);
                     inlineItems.Clear();
 
+                    float oldX = child.Bounds.X;
+                    float oldY = child.Bounds.Y;
+
                     currentX = contentX;
                     lineY += lineHeight + child.Style.MarginTop;
                     lineHeight = 0;
 
-                    LayoutBlock(child, currentX, lineY, contentWidth);
+                    // ����(LayoutBlock) ��� �����¸�ŭ Bounds ��ǥ �̵� ó�� (���� ����ȭ)
+                    ShiftBounds(child, currentX - oldX, lineY - oldY);
                 }
 
                 inlineItems.Add(child);
 
-                currentX += child.Bounds.Width
-                            + child.Style.MarginLeft
-                            + child.Style.MarginRight;
+                currentX += child.Bounds.Width + child.Style.MarginLeft + child.Style.MarginRight;
 
                 if (child.Bounds.Height > lineHeight)
                     lineHeight = child.Bounds.Height;
             }
 
             ApplyTextAlignLine(inlineItems, contentX, contentWidth, parent: node);
-
             contentHeight = lineY + lineHeight - y;
         }
         else
@@ -311,12 +367,9 @@ public sealed class LayoutEngine
             foreach (var child in node.Children)
             {
                 LayoutBlock(child, contentX, currentY, contentWidth);
-
                 ApplyTextAlignChild(node, child, contentX, contentWidth);
 
-                currentY += child.Bounds.Height
-                            + child.Style.MarginTop
-                            + child.Style.MarginBottom;
+                currentY += child.Bounds.Height + child.Style.MarginTop + child.Style.MarginBottom;
             }
 
             if (node.Children.Count > 0)
@@ -326,26 +379,16 @@ public sealed class LayoutEngine
             }
         }
 
-        contentHeight += node.Style.PaddingTop + node.Style.PaddingBottom
-                         + node.Style.BorderTop.Width + node.Style.BorderBottom.Width;
+        contentHeight += node.Style.PaddingTop + node.Style.PaddingBottom + node.Style.BorderTop.Width + node.Style.BorderBottom.Width;
 
         if (node.Style.Height.HasValue && node.Style.Height.Value > contentHeight)
             contentHeight = node.Style.Height.Value;
 
-        node.Bounds = new RectangleF(
-            x + node.Style.MarginLeft,
-            y + node.Style.MarginTop,
-            boundsWidth,
-            contentHeight);
-
-        Log.WriteLine(
-            $"[Layout] <{tagName}> bounds=({node.Bounds.X:F0},{node.Bounds.Y:F0} {node.Bounds.Width:F0}x{node.Bounds.Height:F0})");
+        node.Bounds = new RectangleF(x + node.Style.MarginLeft, y + node.Style.MarginTop, boundsWidth, contentHeight);
     }
 
     private void LayoutInline(LayoutNode node, float x, float y, float width)
     {
-        var tagName = node.Element?.TagName ?? "?";
-
         float contentWidth;
         float contentHeight;
 
@@ -375,9 +418,7 @@ public sealed class LayoutEngine
             {
                 LayoutBlock(child, x + childW, y, width);
 
-                childW += child.Bounds.Width
-                          + child.Style.MarginLeft
-                          + child.Style.MarginRight;
+                childW += child.Bounds.Width + child.Style.MarginLeft + child.Style.MarginRight;
 
                 if (child.Bounds.Height > childH)
                     childH = child.Bounds.Height;
@@ -393,9 +434,6 @@ public sealed class LayoutEngine
         }
 
         node.Bounds = new RectangleF(x, y, contentWidth, contentHeight);
-
-        Log.WriteLine(
-            $"[Layout:inline] <{tagName}> bounds=({node.Bounds.X:F0},{node.Bounds.Y:F0} {node.Bounds.Width:F0}x{node.Bounds.Height:F0})");
     }
 
     private float EstimateInlineWidth(LayoutNode node)
@@ -418,7 +456,6 @@ public sealed class LayoutEngine
             }
             catch { }
         }
-
         return new SizeF(300, 200);
     }
 
@@ -439,17 +476,12 @@ public sealed class LayoutEngine
                 maxCols = row.Children.Count;
         }
 
-        if (maxCols == 0)
-            maxCols = 1;
+        if (maxCols == 0) maxCols = 1;
 
         float colWidth = width / maxCols;
         float tableX = x + node.Style.MarginLeft;
         float tableY = y + node.Style.MarginTop;
         float currentY = tableY;
-
-        float[] colWidths = new float[maxCols];
-        for (int c = 0; c < maxCols; c++)
-            colWidths[c] = colWidth;
 
         foreach (var row in rows)
         {
@@ -465,90 +497,72 @@ public sealed class LayoutEngine
             }
 
             foreach (var cell in row.Children)
-                cell.Bounds = new RectangleF(
-                    cell.Bounds.X, currentY,
-                    cell.Bounds.Width, rowHeight);
+                cell.Bounds = new RectangleF(cell.Bounds.X, currentY, cell.Bounds.Width, rowHeight);
 
             currentY += rowHeight;
         }
 
-        float totalH = currentY - tableY
-                        + node.Style.MarginTop + node.Style.MarginBottom;
-
-        node.Bounds = new RectangleF(
-            x + node.Style.MarginLeft,
-            y + node.Style.MarginTop,
-            width,
-            totalH);
-
-        Log.WriteLine(
-            $"[Layout:table] <table> bounds=({node.Bounds.X:F0},{node.Bounds.Y:F0} {node.Bounds.Width:F0}x{node.Bounds.Height:F0}) rows={rowCount} cols={maxCols}");
+        float totalH = currentY - tableY + node.Style.MarginTop + node.Style.MarginBottom;
+        node.Bounds = new RectangleF(x + node.Style.MarginLeft, y + node.Style.MarginTop, width, totalH);
     }
 
-    private static void ShiftBounds(LayoutNode node, float offsetX)
+    // 5. [����] X��� Y�� �������� ��� �����ϵ��� ������ ShiftBounds
+    private static void ShiftBounds(LayoutNode node, float offsetX, float offsetY)
     {
         node.Bounds = new RectangleF(
             node.Bounds.X + offsetX,
-            node.Bounds.Y,
+            node.Bounds.Y + offsetY,
             node.Bounds.Width,
             node.Bounds.Height);
 
         foreach (var child in node.Children)
-            ShiftBounds(child, offsetX);
+            ShiftBounds(child, offsetX, offsetY);
     }
 
-    private static void ApplyTextAlignLine(
-        List<LayoutNode> items,
-        float contentX, float contentWidth,
-        LayoutNode? parent = null)
+    private static void ApplyTextAlignLine(List<LayoutNode> items, float contentX, float contentWidth, LayoutNode? parent = null)
     {
-        if (parent == null || parent.ResolvedTextAlign == TextAlignType.Left)
+        if (parent == null || parent.Style.TextAlign == TextAlignType.Left)
             return;
 
         float totalWidth = 0;
         foreach (var item in items)
-            totalWidth += item.Bounds.Width
-                          + item.Style.MarginLeft
-                          + item.Style.MarginRight;
+            totalWidth += item.Bounds.Width + item.Style.MarginLeft + item.Style.MarginRight;
 
         float excess = contentWidth - totalWidth;
         if (excess <= 0)
             return;
 
-        float offset = parent.ResolvedTextAlign == TextAlignType.Center
-            ? excess / 2
-            : excess;
+        float offset = parent.Style.TextAlign == TextAlignType.Center ? excess / 2 : excess;
 
         foreach (var item in items)
-            ShiftBounds(item, offset);
+            ShiftBounds(item, offset, 0); // Y�� �̵��� �����Ƿ� 0 ����
     }
 
-    private static void ApplyTextAlignChild(
-        LayoutNode parent, LayoutNode child,
-        float contentX, float contentWidth)
+    private static void ApplyTextAlignChild(LayoutNode parent, LayoutNode child, float contentX, float contentWidth)
     {
-        if (parent.ResolvedTextAlign == TextAlignType.Left)
+        if (parent.Style.TextAlign == TextAlignType.Left)
             return;
 
-        if (child.Style.Display != DisplayType.Inline &&
-            child.Style.Display != DisplayType.None)
+        if (child.Style.Display != DisplayType.Inline && child.Style.Display != DisplayType.None)
             return;
 
         float excess = contentWidth - child.Bounds.Width;
         if (excess <= 0)
             return;
 
-        float offset = parent.ResolvedTextAlign == TextAlignType.Center
-            ? excess / 2
-            : excess;
+        float offset = parent.Style.TextAlign == TextAlignType.Center ? excess / 2 : excess;
 
-        ShiftBounds(child, offset);
+        ShiftBounds(child, offset, 0); // Y�� �̵��� �����Ƿ� 0 ����
     }
 
     private static float GetLineHeight(ComputedStyle style)
     {
         if (style.LineHeight > 0)
+        {
+            if (style.LineHeightIsMultiplier)
+                return style.LineHeight * style.FontSize;
             return style.LineHeight;
+        }
         return style.FontSize + 4;
     }
 }

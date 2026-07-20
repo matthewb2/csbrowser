@@ -66,6 +66,7 @@ public sealed class ComputedStyle
     public float FontSize = 16;
     public string FontFamily = "Arial";
     public float LineHeight;
+    public bool LineHeightIsMultiplier;
 
     public float MarginTop;
     public float MarginBottom;

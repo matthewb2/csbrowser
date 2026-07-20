@@ -128,9 +128,15 @@ public sealed class DisplayListBuilder
                 c.Color = inherited.Color;
 
             if (own.LineHeight != 0 || (elementStyle != null && IsSet(elementStyle, "line-height")))
+            {
                 c.LineHeight = own.LineHeight;
+                c.LineHeightIsMultiplier = own.LineHeightIsMultiplier;
+            }
             else
+            {
                 c.LineHeight = inherited.LineHeight;
+                c.LineHeightIsMultiplier = inherited.LineHeightIsMultiplier;
+            }
 
             if (own.TextAlign != TextAlignType.Left || (elementStyle != null && IsSet(elementStyle, "text-align")))
                 c.TextAlign = own.TextAlign;
@@ -144,6 +150,7 @@ public sealed class DisplayListBuilder
             c.FontSize = own.FontSize;
             c.Color = own.Color;
             c.LineHeight = own.LineHeight;
+            c.LineHeightIsMultiplier = own.LineHeightIsMultiplier;
             c.TextAlign = own.TextAlign;
         }
 

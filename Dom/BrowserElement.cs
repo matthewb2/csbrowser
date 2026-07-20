@@ -58,7 +58,16 @@ public sealed class BrowserElement : RefCounted
             merged.Height = hoverStyle.SetProperties.Contains("height") ? hoverStyle.Height : Style.Height;
             merged.TextAlign = hoverStyle.SetProperties.Contains("text-align") ? hoverStyle.TextAlign : Style.TextAlign;
             merged.FontFamily = hoverStyle.SetProperties.Contains("font-family") ? hoverStyle.FontFamily : Style.FontFamily;
-            merged.LineHeight = hoverStyle.SetProperties.Contains("line-height") ? hoverStyle.LineHeight : Style.LineHeight;
+            if (hoverStyle.SetProperties.Contains("line-height"))
+            {
+                merged.LineHeight = hoverStyle.LineHeight;
+                merged.LineHeightIsMultiplier = hoverStyle.LineHeightIsMultiplier;
+            }
+            else
+            {
+                merged.LineHeight = Style.LineHeight;
+                merged.LineHeightIsMultiplier = Style.LineHeightIsMultiplier;
+            }
             return merged;
         }
     }

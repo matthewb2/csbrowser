@@ -399,30 +399,42 @@ public sealed class HtmlLoader
             }
         }
 
-        var lineHeight = css.GetPropertyValue("line-height");
-        if (!string.IsNullOrEmpty(lineHeight))
+        var rawLineHeight = css.GetPropertyValue("line-height");
+        if (!string.IsNullOrEmpty(rawLineHeight))
         {
-            if (lineHeight.Equals("normal",
+            if (rawLineHeight.Equals("normal",
                     StringComparison.OrdinalIgnoreCase))
             {
                 style.LineHeight = 0;
+                style.LineHeightIsMultiplier = false;
                 style.SetProperties.Add("line-height");
             }
-            else if (float.TryParse(
-                lineHeight.Replace("px", ""),
-                out float lh))
-            {
-                Log.WriteLine($"    [Css] <{tagName}> line-height={lh}");
-                style.LineHeight = lh;
-                style.SetProperties.Add("line-height");
-            }
-            else if (lineHeight.EndsWith("%") &&
+            else if (rawLineHeight.EndsWith("px") &&
                      float.TryParse(
-                         lineHeight.TrimEnd('%'),
+                         rawLineHeight.Replace("px", ""),
+                         out float lhPx))
+            {
+                Log.WriteLine($"    [Css] <{tagName}> line-height={lhPx}px");
+                style.LineHeight = lhPx;
+                style.LineHeightIsMultiplier = false;
+                style.SetProperties.Add("line-height");
+            }
+            else if (rawLineHeight.EndsWith("%") &&
+                     float.TryParse(
+                         rawLineHeight.TrimEnd('%'),
                          out float lhp))
             {
                 Log.WriteLine($"    [Css] <{tagName}> line-height={lhp}%");
                 style.LineHeight = lhp / 100f;
+                style.LineHeightIsMultiplier = true;
+                style.SetProperties.Add("line-height");
+            }
+            else if (float.TryParse(rawLineHeight, out float lh))
+            {
+                // unitless multiplier (e.g. line-height: 1.5)
+                Log.WriteLine($"    [Css] <{tagName}> line-height={lh} (multiplier)");
+                style.LineHeight = lh;
+                style.LineHeightIsMultiplier = true;
                 style.SetProperties.Add("line-height");
             }
         }
