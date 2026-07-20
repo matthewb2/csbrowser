@@ -19,7 +19,6 @@ public sealed class LayoutEngine
 
     public LayoutNode Layout(BrowserElement root, float width)
     {
-        // �ֻ��� ���� �θ� ��Ÿ���� �����Ƿ� null ����
         var layoutRoot = Build(root, null);
         LayoutBlock(layoutRoot, 0, 0, width);
         return layoutRoot;
@@ -440,7 +439,12 @@ public sealed class LayoutEngine
     {
         var text = node.BrowserElement?.Text;
         if (!string.IsNullOrEmpty(text))
-            return text.Length * node.Style.FontSize * 0.75f + 2;
+        {
+            using var bmp = new Bitmap(1, 1);
+            using var g = Graphics.FromImage(bmp);
+            using var font = new Font(node.Style.FontFamily, node.Style.FontSize, FontStyle.Regular, GraphicsUnit.Pixel);
+            return g.MeasureString(text, font).Width;
+        }
 
         return node.Style.FontSize * 2;
     }

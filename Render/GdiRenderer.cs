@@ -116,7 +116,7 @@ public sealed class GdiRenderer
 
         if (item.TextDecoration == TextDecorationType.Underline)
         {
-            float y = item.Bounds.Y + font.GetHeight(g);
+            float y = item.Bounds.Y + font.Size + 1.5f;
             g.DrawLine(pen, item.Bounds.X, y, item.Bounds.X + drawWidth, y);
         }
         else if (item.TextDecoration == TextDecorationType.Overline)

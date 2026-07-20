@@ -77,16 +77,36 @@ public sealed class HtmlLoader
                 Log.WriteLine($"  [HtmlLoader]  <img> resolved: {node.ImagePath} exists={File.Exists(node.ImagePath)}");
             }
         }
-        else if (element.Children.Length == 0)
+
+        bool hasContentChildren = false;
+        foreach (var child in element.ChildNodes)
         {
-            node.Text = element.TextContent.Trim();
+            if (child is IElement childElement)
+            {
+                var childNode = Convert(childElement);
+                childNode.Parent = node;
+                node.Children.Add(childNode);
+                hasContentChildren = true;
+            }
+            else if (child is IText textNode)
+            {
+                var text = textNode.Data;
+                if (string.IsNullOrWhiteSpace(text))
+                    continue;
+
+                var textChild = new BrowserElement();
+                textChild.TagName = "#text";
+                textChild.Text = text.Trim();
+                textChild.Style.Display = DisplayType.Inline;
+                textChild.Parent = node;
+                node.Children.Add(textChild);
+                hasContentChildren = true;
+            }
         }
 
-        foreach (var child in element.Children)
+        if (!hasContentChildren)
         {
-            var childNode = Convert(child);
-            childNode.Parent = node;
-            node.Children.Add(childNode);
+            node.Text = element.TextContent.Trim();
         }
 
         return node;
