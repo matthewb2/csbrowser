@@ -20,6 +20,7 @@ public sealed class DisplayItem : RefCounted
     public TextAlignType TextAlign = TextAlignType.Left;
 
     public string FontFamily = "Arial";
+    public bool IsBold;
 
     public float BorderTopWidth;
     public Layout.BorderStyle BorderTopStyle;

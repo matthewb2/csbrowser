@@ -308,7 +308,7 @@ public sealed class HtmlLoader
     {
         var fontSize = css.GetPropertyValue("font-size");
         if (!string.IsNullOrEmpty(fontSize) &&
-            float.TryParse(fontSize.Replace("px", ""), out float fs))
+            TryParseCssLength(fontSize, out float fs))
         {
             Log.WriteLine($"    [Css] <{tagName}> font-size={fs}");
             style.FontSize = fs;
@@ -317,7 +317,7 @@ public sealed class HtmlLoader
 
         var margin = css.GetPropertyValue("margin");
         if (!string.IsNullOrEmpty(margin) &&
-            float.TryParse(margin.Replace("px", ""), out float m))
+            TryParseCssLength(margin, out float m))
         {
             Log.WriteLine($"    [Css] <{tagName}> margin={m}");
             style.MarginTop = m;
@@ -329,7 +329,7 @@ public sealed class HtmlLoader
 
         var marginTop = css.GetPropertyValue("margin-top");
         if (!string.IsNullOrEmpty(marginTop) &&
-            float.TryParse(marginTop.Replace("px", ""), out float mt))
+            TryParseCssLength(marginTop, out float mt))
         {
             style.MarginTop = mt;
             style.SetProperties.Add("margin-top");
@@ -337,7 +337,7 @@ public sealed class HtmlLoader
 
         var marginBottom = css.GetPropertyValue("margin-bottom");
         if (!string.IsNullOrEmpty(marginBottom) &&
-            float.TryParse(marginBottom.Replace("px", ""), out float mb))
+            TryParseCssLength(marginBottom, out float mb))
         {
             style.MarginBottom = mb;
             style.SetProperties.Add("margin-bottom");
@@ -345,7 +345,7 @@ public sealed class HtmlLoader
 
         var marginLeft = css.GetPropertyValue("margin-left");
         if (!string.IsNullOrEmpty(marginLeft) &&
-            float.TryParse(marginLeft.Replace("px", ""), out float ml))
+            TryParseCssLength(marginLeft, out float ml))
         {
             style.MarginLeft = ml;
             style.SetProperties.Add("margin-left");
@@ -353,7 +353,7 @@ public sealed class HtmlLoader
 
         var marginRight = css.GetPropertyValue("margin-right");
         if (!string.IsNullOrEmpty(marginRight) &&
-            float.TryParse(marginRight.Replace("px", ""), out float mr))
+            TryParseCssLength(marginRight, out float mr))
         {
             style.MarginRight = mr;
             style.SetProperties.Add("margin-right");
@@ -361,7 +361,7 @@ public sealed class HtmlLoader
 
         var padding = css.GetPropertyValue("padding");
         if (!string.IsNullOrEmpty(padding) &&
-            float.TryParse(padding.Replace("px", ""), out float p))
+            TryParseCssLength(padding, out float p))
         {
             style.PaddingTop = p;
             style.PaddingBottom = p;
@@ -372,7 +372,7 @@ public sealed class HtmlLoader
 
         var paddingTop = css.GetPropertyValue("padding-top");
         if (!string.IsNullOrEmpty(paddingTop) &&
-            float.TryParse(paddingTop.Replace("px", ""), out float pt))
+            TryParseCssLength(paddingTop, out float pt))
         {
             style.PaddingTop = pt;
             style.SetProperties.Add("padding-top");
@@ -380,7 +380,7 @@ public sealed class HtmlLoader
 
         var paddingBottom = css.GetPropertyValue("padding-bottom");
         if (!string.IsNullOrEmpty(paddingBottom) &&
-            float.TryParse(paddingBottom.Replace("px", ""), out float pb))
+            TryParseCssLength(paddingBottom, out float pb))
         {
             style.PaddingBottom = pb;
             style.SetProperties.Add("padding-bottom");
@@ -388,7 +388,7 @@ public sealed class HtmlLoader
 
         var paddingLeft = css.GetPropertyValue("padding-left");
         if (!string.IsNullOrEmpty(paddingLeft) &&
-            float.TryParse(paddingLeft.Replace("px", ""), out float pl))
+            TryParseCssLength(paddingLeft, out float pl))
         {
             style.PaddingLeft = pl;
             style.SetProperties.Add("padding-left");
@@ -396,7 +396,7 @@ public sealed class HtmlLoader
 
         var paddingRight = css.GetPropertyValue("padding-right");
         if (!string.IsNullOrEmpty(paddingRight) &&
-            float.TryParse(paddingRight.Replace("px", ""), out float pr))
+            TryParseCssLength(paddingRight, out float pr))
         {
             style.PaddingRight = pr;
             style.SetProperties.Add("padding-right");
@@ -417,6 +417,23 @@ public sealed class HtmlLoader
                 style.FontFamily = firstFont;
                 style.SetProperties.Add("font-family");
             }
+        }
+
+        var fontWeight = css.GetPropertyValue("font-weight");
+        if (!string.IsNullOrEmpty(fontWeight))
+        {
+            int fw;
+            if (fontWeight.Equals("bold", StringComparison.OrdinalIgnoreCase))
+                fw = 700;
+            else if (fontWeight.Equals("normal", StringComparison.OrdinalIgnoreCase))
+                fw = 400;
+            else if (int.TryParse(fontWeight, out fw)) { }
+            else
+                fw = 400;
+
+            style.IsBold = fw >= 600;
+            style.SetProperties.Add("font-weight");
+            Log.WriteLine($"    [Css] <{tagName}> font-weight={fw} -> IsBold={style.IsBold}");
         }
 
         var rawLineHeight = css.GetPropertyValue("line-height");
@@ -544,7 +561,7 @@ public sealed class HtmlLoader
 
         var cssWidth = css.GetPropertyValue("width");
         if (!string.IsNullOrEmpty(cssWidth) &&
-            float.TryParse(cssWidth.Replace("px", ""), out float cw))
+            TryParseCssLength(cssWidth, out float cw))
         {
             Log.WriteLine($"    [Css] <{tagName}> width={cw}");
             style.Width = cw;
@@ -553,7 +570,7 @@ public sealed class HtmlLoader
 
         var cssHeight = css.GetPropertyValue("height");
         if (!string.IsNullOrEmpty(cssHeight) &&
-            float.TryParse(cssHeight.Replace("px", ""), out float ch))
+            TryParseCssLength(cssHeight, out float ch))
         {
             Log.WriteLine($"    [Css] <{tagName}> height={ch}");
             style.Height = ch;
@@ -610,10 +627,7 @@ public sealed class HtmlLoader
 
         foreach (var token in tokens)
         {
-            if (token.EndsWith("px", StringComparison.OrdinalIgnoreCase) &&
-                float.TryParse(
-                    token.AsSpan(0, token.Length - 2),
-                    out float w))
+            if (TryParseCssLength(token, out float w))
             {
                 width = w;
             }
@@ -704,5 +718,27 @@ public sealed class HtmlLoader
             apply(ref style.BorderLeft);
         else if (side == "right")
             apply(ref style.BorderRight);
+    }
+
+    private static bool TryParseCssLength(string value, out float result, float referencePx = 16f)
+    {
+        result = 0;
+        if (string.IsNullOrEmpty(value))
+            return false;
+        value = value.Trim();
+
+        if (value.EndsWith("px") && float.TryParse(value.AsSpan(0, value.Length - 2), out float px))
+        { result = px; return true; }
+        if (value.EndsWith("rem") && float.TryParse(value.AsSpan(0, value.Length - 3), out float rem))
+        { result = rem * referencePx; return true; }
+        if (value.EndsWith("em") && float.TryParse(value.AsSpan(0, value.Length - 2), out float em))
+        { result = em * referencePx; return true; }
+        if (value.EndsWith("pt") && float.TryParse(value.AsSpan(0, value.Length - 2), out float pt))
+        { result = pt * 96f / 72f; return true; }
+
+        if (float.TryParse(value, out float unitless))
+        { result = unitless; return true; }
+
+        return false;
     }
 }

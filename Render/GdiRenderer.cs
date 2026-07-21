@@ -44,7 +44,8 @@ public sealed class GdiRenderer
             if (!IsFontInstalled(fontFamily))
                 fontFamily = "Arial";
 
-            using var font = new Font(fontFamily, fontSize, FontStyle.Regular, GraphicsUnit.Pixel);
+            var fontStyle = item.IsBold ? FontStyle.Bold : FontStyle.Regular;
+            using var font = new Font(fontFamily, fontSize, fontStyle, GraphicsUnit.Pixel);
 
             using var format = new StringFormat();
             format.Alignment = item.TextAlign switch

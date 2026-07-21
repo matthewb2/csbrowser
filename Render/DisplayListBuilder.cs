@@ -72,6 +72,7 @@ public sealed class DisplayListBuilder
                 Bounds = node.Bounds,
                 FontSize = resolved.FontSize,
                 FontFamily = resolved.FontFamily,
+                IsBold = resolved.IsBold,
                 Color = resolved.Color,
                 BackgroundColor = resolved.BackgroundColor,
                 TextDecoration = resolved.TextDecoration,
@@ -122,6 +123,11 @@ public sealed class DisplayListBuilder
             else
                 c.FontSize = inherited.FontSize;
 
+            if (own.IsBold || (elementStyle != null && IsSet(elementStyle, "font-weight")))
+                c.IsBold = own.IsBold;
+            else
+                c.IsBold = inherited.IsBold;
+
             if (own.Color.ToArgb() != Color.Black.ToArgb() || (elementStyle != null && IsSet(elementStyle, "color")))
                 c.Color = own.Color;
             else
@@ -149,6 +155,7 @@ public sealed class DisplayListBuilder
             c.FontFamily = own.FontFamily;
             c.FontSize = own.FontSize;
             c.Color = own.Color;
+            c.IsBold = own.IsBold;
             c.LineHeight = own.LineHeight;
             c.LineHeightIsMultiplier = own.LineHeightIsMultiplier;
             c.TextAlign = own.TextAlign;

@@ -63,6 +63,10 @@ public sealed class LayoutEngine
             ? elementStyle.FontSize
             : parentStyle?.FontSize ?? 16f;
 
+        resolved.IsBold = elementStyle.SetProperties.Contains("font-weight")
+            ? elementStyle.IsBold
+            : parentStyle?.IsBold ?? false;
+
         if (elementStyle.SetProperties.Contains("line-height"))
         {
             resolved.LineHeight = elementStyle.LineHeight;
@@ -114,19 +118,22 @@ public sealed class LayoutEngine
         {
             case IHtmlHeadingElement:
                 var level = element.LocalName;
-                style.FontSize = level switch
+                if (!style.SetProperties.Contains("font-size"))
                 {
-                    "h1" => 32,
-                    "h2" => 24,
-                    "h3" => 18.5f,
-                    "h4" => 16,
-                    "h5" => 13.3f,
-                    "h6" => 10.7f,
-                    _ => 16
-                };
-                if (style.MarginTop == 0)
+                    style.FontSize = level switch
+                    {
+                        "h1" => 32,
+                        "h2" => 24,
+                        "h3" => 18.5f,
+                        "h4" => 16,
+                        "h5" => 13.3f,
+                        "h6" => 10.7f,
+                        _ => 16
+                    };
+                }
+                if (!style.SetProperties.Contains("margin-top") && style.MarginTop == 0)
                     style.MarginTop = style.FontSize * 0.67f;
-                if (style.MarginBottom == 0)
+                if (!style.SetProperties.Contains("margin-bottom") && style.MarginBottom == 0)
                     style.MarginBottom = style.FontSize * 0.67f;
                 break;
 
@@ -442,7 +449,8 @@ public sealed class LayoutEngine
         {
             using var bmp = new Bitmap(1, 1);
             using var g = Graphics.FromImage(bmp);
-            using var font = new Font(node.Style.FontFamily, node.Style.FontSize, FontStyle.Regular, GraphicsUnit.Pixel);
+            var fontStyle = node.Style.IsBold ? FontStyle.Bold : FontStyle.Regular;
+            using var font = new Font(node.Style.FontFamily, node.Style.FontSize, fontStyle, GraphicsUnit.Pixel);
             return g.MeasureString(text, font).Width;
         }
 

@@ -58,6 +58,7 @@ public sealed class BrowserElement : RefCounted
             merged.Height = hoverStyle.SetProperties.Contains("height") ? hoverStyle.Height : Style.Height;
             merged.TextAlign = hoverStyle.SetProperties.Contains("text-align") ? hoverStyle.TextAlign : Style.TextAlign;
             merged.FontFamily = hoverStyle.SetProperties.Contains("font-family") ? hoverStyle.FontFamily : Style.FontFamily;
+            merged.IsBold = hoverStyle.SetProperties.Contains("font-weight") ? hoverStyle.IsBold : Style.IsBold;
             if (hoverStyle.SetProperties.Contains("line-height"))
             {
                 merged.LineHeight = hoverStyle.LineHeight;
