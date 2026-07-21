@@ -187,21 +187,30 @@ public sealed class GdiRenderer
         float textWidth = g.MeasureString(item.Text, font).Width;
         float drawWidth = Math.Min(textWidth, item.Bounds.Width);
 
+        var family = font.FontFamily;
+        int emHeight = family.GetEmHeight(font.Style);
+        float lineH = font.GetHeight(g);
+        float ascent = family.GetCellAscent(font.Style) * lineH / emHeight;
+
+        float baselineY = item.Bounds.Y + ascent;
+
         using var pen = new Pen(item.Color, 1);
 
         if (item.TextDecoration == TextDecorationType.Underline)
         {
-            float y = item.Bounds.Y + font.Size + 1.5f;
+            float y = baselineY + 2;
             g.DrawLine(pen, item.Bounds.X, y, item.Bounds.X + drawWidth, y);
         }
         else if (item.TextDecoration == TextDecorationType.Overline)
         {
-            float y = item.Bounds.Y + 2;
+            float y = item.Bounds.Y;
             g.DrawLine(pen, item.Bounds.X, y, item.Bounds.X + drawWidth, y);
         }
         else if (item.TextDecoration == TextDecorationType.LineThrough)
         {
-            float y = item.Bounds.Y + font.GetHeight(g) / 2;
+            int descent = family.GetCellDescent(font.Style);
+            float middle = (ascent - descent * lineH / emHeight) / 2;
+            float y = item.Bounds.Y + middle;
             g.DrawLine(pen, item.Bounds.X, y, item.Bounds.X + drawWidth, y);
         }
     }
