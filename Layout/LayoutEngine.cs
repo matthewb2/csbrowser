@@ -49,6 +49,8 @@ public sealed class LayoutEngine
         resolved.BackgroundColor = elementStyle.BackgroundColor;
         resolved.TextDecoration = elementStyle.TextDecoration;
         resolved.FlexDirection = elementStyle.FlexDirection;
+        resolved.FlexWrap = elementStyle.FlexWrap;
+        resolved.Gap = elementStyle.Gap;
 
         // Inherited properties: use element's value if explicitly set, otherwise inherit from parent
         resolved.Color = elementStyle.SetProperties.Contains("color")

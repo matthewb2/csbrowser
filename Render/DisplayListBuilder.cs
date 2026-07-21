@@ -167,6 +167,8 @@ public sealed class DisplayListBuilder
         c.Display = own.Display;
         c.BoxSizing = own.BoxSizing;
         c.FlexDirection = own.FlexDirection;
+        c.FlexWrap = own.FlexWrap;
+        c.Gap = own.Gap;
         c.Width = own.Width;
         c.Height = own.Height;
         c.MarginTop = own.MarginTop;

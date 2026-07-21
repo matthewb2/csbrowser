@@ -533,6 +533,25 @@ public sealed class HtmlLoader
             style.SetProperties.Add("flex-direction");
         }
 
+        var flexWrap = css.GetPropertyValue("flex-wrap");
+        if (!string.IsNullOrEmpty(flexWrap))
+        {
+            Log.WriteLine($"    [Css] <{tagName}> flex-wrap={flexWrap}");
+            style.FlexWrap = flexWrap.Equals("wrap", StringComparison.OrdinalIgnoreCase)
+                ? FlexWrapType.Wrap
+                : FlexWrapType.NoWrap;
+            style.SetProperties.Add("flex-wrap");
+        }
+
+        var gap = css.GetPropertyValue("gap");
+        if (!string.IsNullOrEmpty(gap) &&
+            TryParseCssLength(gap, out float gapVal))
+        {
+            Log.WriteLine($"    [Css] <{tagName}> gap={gapVal}");
+            style.Gap = gapVal;
+            style.SetProperties.Add("gap");
+        }
+
         var textDecoration = css.GetPropertyValue("text-decoration");
         if (!string.IsNullOrEmpty(textDecoration))
         {

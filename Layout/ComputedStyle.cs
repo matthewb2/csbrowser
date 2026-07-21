@@ -28,6 +28,12 @@ public enum BoxSizingType
     BorderBox
 }
 
+public enum FlexWrapType
+{
+    NoWrap,
+    Wrap
+}
+
 public enum ElementState
 {
     Normal,
@@ -89,6 +95,8 @@ public sealed class ComputedStyle
 
     public DisplayType Display = DisplayType.Block;
     public FlexDirection FlexDirection = FlexDirection.Row;
+    public FlexWrapType FlexWrap = FlexWrapType.NoWrap;
+    public float Gap;
 
     public TextDecorationType TextDecoration = TextDecorationType.None;
     public BoxSizingType BoxSizing = BoxSizingType.ContentBox;
