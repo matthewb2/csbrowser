@@ -34,7 +34,7 @@ public sealed class BrowserControl
     {
         base.OnResize(e);
         Log.WriteLine($"[BrowserControl] OnResize: Control Size = {Width}x{Height}");
-        Invalidate();
+        Relayout();
     }
 
     public void LoadDocument(BrowserElement root)
