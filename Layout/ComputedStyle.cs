@@ -98,6 +98,10 @@ public sealed class ComputedStyle
     public FlexWrapType FlexWrap = FlexWrapType.NoWrap;
     public float Gap;
 
+    public float FlexGrow;
+    public float FlexShrink = 1;
+    public float FlexBasis;
+
     public TextDecorationType TextDecoration = TextDecorationType.None;
     public BoxSizingType BoxSizing = BoxSizingType.ContentBox;
 
@@ -105,4 +109,6 @@ public sealed class ComputedStyle
     public float? Height;
 
     public TextAlignType TextAlign = TextAlignType.Left;
+
+    public float BorderRadius;
 }

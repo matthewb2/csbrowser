@@ -51,6 +51,10 @@ public sealed class LayoutEngine
         resolved.FlexDirection = elementStyle.FlexDirection;
         resolved.FlexWrap = elementStyle.FlexWrap;
         resolved.Gap = elementStyle.Gap;
+        resolved.FlexGrow = elementStyle.FlexGrow;
+        resolved.FlexShrink = elementStyle.FlexShrink;
+        resolved.FlexBasis = elementStyle.FlexBasis;
+        resolved.BorderRadius = elementStyle.BorderRadius;
 
         // Inherited properties: use element's value if explicitly set, otherwise inherit from parent
         resolved.Color = elementStyle.SetProperties.Contains("color")
@@ -439,6 +443,13 @@ public sealed class LayoutEngine
         {
             contentWidth = EstimateInlineWidth(node);
             contentHeight = GetLineHeight(node.Style);
+
+            if (contentWidth > width)
+            {
+                contentWidth = width;
+                int lineCount = Math.Max(1, (int)Math.Ceiling(EstimateInlineWidth(node) / width));
+                contentHeight = GetLineHeight(node.Style) * lineCount;
+            }
         }
 
         node.Bounds = new RectangleF(x, y, contentWidth, contentHeight);

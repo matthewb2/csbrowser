@@ -38,6 +38,8 @@ public sealed class DisplayItem : RefCounted
     public Layout.BorderStyle BorderRightStyle;
     public Color BorderRightColor;
 
+    public float BorderRadius;
+
     protected override void Cleanup()
     {
         Image = null;

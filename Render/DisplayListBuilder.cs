@@ -60,6 +60,7 @@ public sealed class DisplayListBuilder
                 BorderRightWidth = resolved.BorderRight.Width,
                 BorderRightStyle = resolved.BorderRight.Style,
                 BorderRightColor = resolved.BorderRight.Color,
+                BorderRadius = resolved.BorderRadius,
             };
 
             items.Add(item);
@@ -90,6 +91,7 @@ public sealed class DisplayListBuilder
                 BorderRightWidth = resolved.BorderRight.Width,
                 BorderRightStyle = resolved.BorderRight.Style,
                 BorderRightColor = resolved.BorderRight.Color,
+                BorderRadius = resolved.BorderRadius,
             };
 
             items.Add(item);
@@ -169,6 +171,10 @@ public sealed class DisplayListBuilder
         c.FlexDirection = own.FlexDirection;
         c.FlexWrap = own.FlexWrap;
         c.Gap = own.Gap;
+        c.FlexGrow = own.FlexGrow;
+        c.FlexShrink = own.FlexShrink;
+        c.FlexBasis = own.FlexBasis;
+        c.BorderRadius = own.BorderRadius;
         c.Width = own.Width;
         c.Height = own.Height;
         c.MarginTop = own.MarginTop;

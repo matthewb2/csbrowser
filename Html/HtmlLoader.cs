@@ -552,6 +552,29 @@ public sealed class HtmlLoader
             style.SetProperties.Add("gap");
         }
 
+        var flexShorthand = css.GetPropertyValue("flex");
+        if (!string.IsNullOrEmpty(flexShorthand))
+        {
+            Log.WriteLine($"    [Css] <{tagName}> flex={flexShorthand}");
+            var parts = flexShorthand.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+            if (parts.Length >= 1 && float.TryParse(parts[0], out float fg))
+            {
+                style.FlexGrow = fg;
+                style.SetProperties.Add("flex-grow");
+            }
+            if (parts.Length >= 2 && float.TryParse(parts[1], out float fsk))
+            {
+                style.FlexShrink = fsk;
+                style.SetProperties.Add("flex-shrink");
+            }
+            if (parts.Length >= 3 && TryParseCssLength(parts[2], out float fb))
+            {
+                style.FlexBasis = fb;
+                style.SetProperties.Add("flex-basis");
+            }
+            style.SetProperties.Add("flex");
+        }
+
         var textDecoration = css.GetPropertyValue("text-decoration");
         if (!string.IsNullOrEmpty(textDecoration))
         {
@@ -594,6 +617,15 @@ public sealed class HtmlLoader
             Log.WriteLine($"    [Css] <{tagName}> height={ch}");
             style.Height = ch;
             style.SetProperties.Add("height");
+        }
+
+        var borderRadius = css.GetPropertyValue("border-radius");
+        if (!string.IsNullOrEmpty(borderRadius) &&
+            TryParseCssLength(borderRadius, out float br))
+        {
+            Log.WriteLine($"    [Css] <{tagName}> border-radius={br}");
+            style.BorderRadius = br;
+            style.SetProperties.Add("border-radius");
         }
     }
 

@@ -32,6 +32,15 @@ public sealed class FlexLayoutEngine
         return child.Style.FontSize * 4;
     }
 
+    private float GetFlexBasis(LayoutNode child)
+    {
+        if (child.Style.FlexBasis > 0)
+            return child.Style.FlexBasis;
+        if (child.Style.Width.HasValue)
+            return child.Style.Width.Value;
+        return EstimateChildWidth(child);
+    }
+
     private void LayoutRow(
         LayoutNode node,
         float x,
@@ -41,88 +50,184 @@ public sealed class FlexLayoutEngine
         float gap = node.Style.Gap;
         bool doWrap = node.Style.FlexWrap == FlexWrapType.Wrap;
 
+        float padLeft = node.Style.BorderLeft.Width + node.Style.PaddingLeft;
+        float padRight = node.Style.BorderRight.Width + node.Style.PaddingRight;
+        float contentX = x + node.Style.MarginLeft + padLeft;
+        float contentWidth = Math.Max(0, width - padLeft - padRight);
         float containerTop = y + node.Style.MarginTop + node.Style.BorderTop.Width + node.Style.PaddingTop;
-        float cursorX = x + node.Style.MarginLeft + node.Style.BorderLeft.Width + node.Style.PaddingLeft;
-        float startY = containerTop;
 
-        var lines = new List<(List<LayoutNode> items, float width)>();
-        var currentLineItems = new List<LayoutNode>();
-        float currentLineWidth = 0f;
+        var children = node.Children;
 
-        foreach (var child in node.Children)
+        if (doWrap)
+            LayoutRowWrap(node, contentX, containerTop, contentWidth, width, gap);
+        else
+            LayoutRowNoWrap(node, contentX, containerTop, contentWidth, width, gap);
+    }
+
+    private void LayoutRowNoWrap(
+        LayoutNode node,
+        float contentX,
+        float containerTop,
+        float contentWidth,
+        float totalWidth,
+        float gap)
+    {
+        var children = node.Children;
+        int count = children.Count;
+
+        float totalBasis = 0;
+        float totalGrow = 0;
+        float totalGap = gap > 0 && count > 1 ? gap * (count - 1) : 0;
+        int growableCount = 0;
+
+        for (int i = 0; i < count; i++)
         {
-            float childContentW = EstimateChildWidth(child);
+            float basis = GetFlexBasis(children[i]);
+            totalBasis += basis;
+            if (children[i].Style.FlexGrow > 0)
+            {
+                totalGrow += children[i].Style.FlexGrow;
+                growableCount++;
+            }
+        }
 
-            _blockEngine.LayoutBlock(child, cursorX, containerTop, childContentW);
+        float remaining = Math.Max(0, contentWidth - totalBasis - totalGap);
+
+        float cursorX = contentX;
+        float maxHeight = 0f;
+
+        for (int i = 0; i < count; i++)
+        {
+            var child = children[i];
+            float basis = GetFlexBasis(child);
+            float extra = (growableCount > 0 && child.Style.FlexGrow > 0)
+                ? remaining * child.Style.FlexGrow / totalGrow
+                : 0;
+            float finalW = basis + extra;
+
+            _blockEngine.LayoutBlock(child, cursorX, containerTop, finalW);
 
             child.Bounds = new RectangleF(
                 cursorX + child.Style.MarginLeft,
                 containerTop + child.Style.MarginTop,
-                childContentW,
+                child.Bounds.Width,
                 child.Bounds.Height);
 
-            float childW = childContentW + child.Style.MarginLeft + child.Style.MarginRight;
-
-            float neededExtra = currentLineItems.Count > 0 ? gap : 0;
-
-            if (doWrap && currentLineItems.Count > 0 &&
-                currentLineWidth + neededExtra + childW > width)
-            {
-                lines.Add((currentLineItems, currentLineWidth));
-                currentLineItems = new List<LayoutNode>();
-                currentLineWidth = 0f;
-                neededExtra = 0f;
-            }
-
-            currentLineItems.Add(child);
-            currentLineWidth += neededExtra + childW;
-
-            cursorX += neededExtra + childW;
+            float childW = child.Bounds.Width + child.Style.MarginLeft + child.Style.MarginRight;
+            float childH = child.Bounds.Height + child.Style.MarginTop + child.Style.MarginBottom;
 
             Log.WriteLine(
-                $"[Flex] Row item <{child.Element?.TagName ?? child.BrowserElement?.TagName ?? "?"}> -> ({child.Bounds.X:F0},{child.Bounds.Y:F0}) size=({child.Bounds.Width:F0}x{child.Bounds.Height:F0})");
+                $"[Flex] Row item <{child.Element?.TagName ?? child.BrowserElement?.TagName ?? "?"}> -> ({child.Bounds.X:F0},{child.Bounds.Y:F0}) size=({child.Bounds.Width:F0}x{child.Bounds.Height:F0}) basis={basis:F0} final={finalW:F0}");
+
+            cursorX += childW + (i < count - 1 ? gap : 0);
+            if (childH > maxHeight) maxHeight = childH;
         }
 
-        if (currentLineItems.Count > 0)
-            lines.Add((currentLineItems, currentLineWidth));
+        float totalH = maxHeight + node.Style.MarginTop + node.Style.BorderTop.Width + node.Style.PaddingTop
+                      + node.Style.BorderBottom.Width + node.Style.PaddingBottom + node.Style.MarginBottom;
+        float containerX = contentX - node.Style.BorderLeft.Width - node.Style.PaddingLeft - node.Style.MarginLeft;
+        node.Bounds = new RectangleF(containerX, containerTop - node.Style.BorderTop.Width - node.Style.PaddingTop - node.Style.MarginTop, totalWidth, totalH);
+    }
 
-        float allMaxHeight = 0f;
-        float lineY = startY;
-        float totalContentWidth = 0f;
+    private void LayoutRowWrap(
+        LayoutNode node,
+        float contentX,
+        float containerTop,
+        float contentWidth,
+        float totalWidth,
+        float gap)
+    {
+        var children = node.Children;
+        int count = children.Count;
 
-        foreach (var (items, lineW) in lines)
+        var bases = new float[count];
+        var growValues = new float[count];
+        float totalGrow = 0;
+
+        for (int i = 0; i < count; i++)
         {
-            float lineHeight = 0f;
+            bases[i] = GetFlexBasis(children[i]);
+            growValues[i] = children[i].Style.FlexGrow;
+            totalGrow += growValues[i];
+        }
 
-            foreach (var child in items)
+        var lines = new List<List<int>>();
+        var currentLine = new List<int>();
+        float lineW = 0;
+
+        for (int i = 0; i < count; i++)
+        {
+            float extra = currentLine.Count > 0 ? gap : 0;
+
+            if (currentLine.Count > 0 && lineW + extra + bases[i] > contentWidth)
             {
-                float childH = child.Bounds.Height + child.Style.MarginTop + child.Style.MarginBottom;
-                if (childH > lineHeight) lineHeight = childH;
+                lines.Add(currentLine);
+                currentLine = new List<int>();
+                lineW = 0;
             }
 
-            foreach (var child in items)
+            currentLine.Add(i);
+            lineW += (currentLine.Count > 1 ? gap : 0) + bases[i];
+        }
+
+        if (currentLine.Count > 0)
+            lines.Add(currentLine);
+
+        float lineY = containerTop;
+
+        foreach (var line in lines)
+        {
+            float lineBasisSum = 0;
+            float lineGrowSum = 0;
+
+            foreach (var idx in line)
             {
+                lineBasisSum += bases[idx];
+                lineGrowSum += growValues[idx];
+            }
+
+            int lineGapCount = line.Count > 1 ? line.Count - 1 : 0;
+            float lineGaps = gap * lineGapCount;
+            float lineAvailable = contentWidth - lineBasisSum - lineGaps;
+            float lineHeight = 0;
+            float cursorX = contentX;
+
+            for (int li = 0; li < line.Count; li++)
+            {
+                int i = line[li];
+                var child = children[i];
+                float extra = (lineGrowSum > 0 && growValues[i] > 0)
+                    ? lineAvailable * growValues[i] / lineGrowSum
+                    : 0;
+                float finalW = bases[i] + extra;
+
+                _blockEngine.LayoutBlock(child, cursorX, lineY, finalW);
+
                 child.Bounds = new RectangleF(
-                    child.Bounds.X,
+                    cursorX + child.Style.MarginLeft,
                     lineY + child.Style.MarginTop,
                     child.Bounds.Width,
                     child.Bounds.Height);
+
+                float childW = child.Bounds.Width + child.Style.MarginLeft + child.Style.MarginRight;
+                float childH = child.Bounds.Height + child.Style.MarginTop + child.Style.MarginBottom;
+
+                Log.WriteLine(
+                    $"[Flex] Wrap item <{child.Element?.TagName ?? child.BrowserElement?.TagName ?? "?"}> -> ({child.Bounds.X:F0},{child.Bounds.Y:F0}) size=({child.Bounds.Width:F0}x{child.Bounds.Height:F0}) basis={bases[i]:F0} final={finalW:F0}");
+
+                cursorX += childW + gap;
+
+                if (childH > lineHeight)
+                    lineHeight = childH;
             }
 
             lineY += lineHeight;
-            if (lineW > totalContentWidth) totalContentWidth = lineW;
         }
 
-        allMaxHeight = lineY - startY;
-
-        float padLeft = node.Style.PaddingLeft + node.Style.BorderLeft.Width;
-        float padRight = node.Style.PaddingRight + node.Style.BorderRight.Width;
-        float totalH = allMaxHeight + node.Style.MarginTop + node.Style.BorderTop.Width + node.Style.PaddingTop
+        float totalH = lineY - containerTop + node.Style.MarginTop + node.Style.BorderTop.Width + node.Style.PaddingTop
                       + node.Style.BorderBottom.Width + node.Style.PaddingBottom + node.Style.MarginBottom;
-
-        node.Bounds = new RectangleF(x, y, width, totalH);
-
-        Log.WriteLine($"[Flex] Container result: {lines.Count} line(s), totalW={totalContentWidth:F0} totalH={totalH:F0}");
+        float containerX = contentX - node.Style.BorderLeft.Width - node.Style.PaddingLeft - node.Style.MarginLeft;
+        node.Bounds = new RectangleF(containerX, containerTop - node.Style.BorderTop.Width - node.Style.PaddingTop - node.Style.MarginTop, totalWidth, totalH);
     }
 
     private void LayoutColumn(
