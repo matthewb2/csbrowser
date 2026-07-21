@@ -15,7 +15,7 @@ public sealed class BrowserControl
     private LayoutNode? _layoutRoot;
     private BrowserElement? _hoveredElement;
 
-    // ����׿� ������ ������ ī���� (�α� ȫ�� ������ �ֱ��� ��� � Ȱ�� ����)
+    // 렌더링에 사용되는 렌더 카운트 (로그 홍보 용도를 주기 위해 뷰에 활용 중)
     private int _paintCount = 0;
     private readonly List<DisplayItem> _capturedItems = new List<DisplayItem>(512);
 
@@ -228,7 +228,7 @@ public sealed class BrowserControl
 
         _paintCount++;
 
-        // 1. ���� ȭ�鿡 ����Ǵ� ����Ʈ(Viewport) ���� ���
+        // 1. 현재 화면에 표시되는 영역(Viewport) 범위 계산
         int viewX = -AutoScrollPosition.X;
         int viewY = -AutoScrollPosition.Y;
         int viewW = Math.Max(Width, 1);
@@ -236,32 +236,39 @@ public sealed class BrowserControl
 
         RectangleF viewportRect = new RectangleF(viewX, viewY, viewW, viewH);
 
-        // 2. ����Ʈ���� �̿��� ���� ����Ʈ ������ ��ġ�� �����۵鸸 ���� ���� (�ø�)
-        
-        _capturedItems.Clear();
-        _hitTestTree.Query(viewportRect, _capturedItems);
-
-        // [����� �α�] �˰������� �ùٸ��� �����ϴ��� Ȯ���� �� �ִ� �� ��ǥ ���
-        // (��ũ���ϰų� â ũ�⸦ �ٲ� �� ��ü ������ �� �� ���� �߷����� �׸����� Ȯ���� �� �ֽ��ϴ�)
-        Log.WriteLine($"[Paint #{_paintCount}] Viewport: [X={viewX}, Y={viewY}, W={viewW}, H={viewH}] | " +
-                      $"Total Items: {_displayList.Count} | " +
-                      $"Visible (Culling Result): {_capturedItems.Count} items rendered " +
-                      $"({(double)_capturedItems.Count / Math.Max(_displayList.Count, 1) * 100:F1}% of total)");
-
-        // 3. ��ũ�� ��ġ�� ���߾� �׷��Ƚ� ��ǥ�� �̵�
-        e.Graphics.TranslateTransform(AutoScrollPosition.X, AutoScrollPosition.Y);
-
-        // 4. �ؽ�Ʈ �� �׷��� ǰ�� ����
-        e.Graphics.TextRenderingHint = System.Drawing.Text.TextRenderingHint.ClearTypeGridFit;
-        e.Graphics.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
-
         var renderer = new GdiRenderer();
 
-        foreach (var item in _displayList)
+        // 최초 화면 그리기(첫 번째 페인트)일 때는 쿼드트리를 사용하지 않고 전체 순회 렌더링 수행
+        if (_paintCount == 1)
         {
-            if (item.Bounds.IntersectsWith(viewportRect))
+            Log.WriteLine($"[Paint #{_paintCount}] Initial Paint: Rendering all {_displayList.Count} items without Quadtree culling.");
+
+            e.Graphics.TranslateTransform(AutoScrollPosition.X, AutoScrollPosition.Y);
+
+            foreach (var item in _displayList)
             {
                 renderer.RenderItem(e.Graphics, item);
+            }
+        }
+        else
+        {
+            // 화면을 다시 그릴 때부터 쿼드트리 기반 컬링 수행
+            _capturedItems.Clear();
+            _hitTestTree.Query(viewportRect, _capturedItems);
+
+            Log.WriteLine($"[Paint #{_paintCount}] Viewport: [X={viewX}, Y={viewY}, W={viewW}, H={viewH}] | " +
+                          $"Total Items: {_displayList.Count} | " +
+                          $"Visible (Culling Result): {_capturedItems.Count} items rendered " +
+                          $"({(double)_capturedItems.Count / Math.Max(_displayList.Count, 1) * 100:F1}% of total)");
+
+            e.Graphics.TranslateTransform(AutoScrollPosition.X, AutoScrollPosition.Y);
+
+            foreach (var item in _displayList)
+            {
+                if (item.Bounds.IntersectsWith(viewportRect))
+                {
+                    renderer.RenderItem(e.Graphics, item);
+                }
             }
         }
     }

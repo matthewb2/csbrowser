@@ -66,24 +66,29 @@ public sealed class GdiRenderer
             format.LineAlignment = StringAlignment.Near;
             format.Trimming = StringTrimming.Word;
 
+            // GdiRenderer.RenderItem ������ �ؽ�Ʈ ��� ����
+            g.TextRenderingHint = System.Drawing.Text.TextRenderingHint.ClearTypeGridFit;
+            g.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
+
             g.DrawString(item.Text, font, brush, item.Bounds, format);
 
             DrawTextDecoration(g, item, font);
         }
     }
 
+    private static readonly HashSet<string> _installedFonts;
+
+    static GdiRenderer()
+    {
+        _installedFonts = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        using var collection = new System.Drawing.Text.InstalledFontCollection();
+        foreach (var family in collection.Families)
+            _installedFonts.Add(family.Name);
+    }
+
     private static bool IsFontInstalled(string fontName)
     {
-        try
-        {
-            using var font = new Font(fontName, 8);
-            return font.Name.Equals(fontName,
-                StringComparison.OrdinalIgnoreCase);
-        }
-        catch
-        {
-            return false;
-        }
+        return _installedFonts.Contains(fontName);
     }
 
     private void DrawBorders(Graphics g, DisplayItem item)
