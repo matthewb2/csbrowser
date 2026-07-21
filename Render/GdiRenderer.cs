@@ -24,8 +24,6 @@ public sealed class GdiRenderer
             Log.WriteLine($"[RenderItem] <{(item.Element?.TagName ?? "?")}> (no text) Bounds=({item.Bounds.X:F0},{item.Bounds.Y:F0} {item.Bounds.Width:F0}x{item.Bounds.Height:F0})");
         }
 
-        DrawBorders(g, item);
-
         if (item.BackgroundColor.HasValue)
         {
             using var bgBrush = new SolidBrush(item.BackgroundColor.Value);
@@ -39,6 +37,8 @@ public sealed class GdiRenderer
                 g.FillRectangle(bgBrush, item.Bounds);
             }
         }
+
+        DrawBorders(g, item);
 
         if (item.IsImage && item.Image != null)
         {
@@ -96,6 +96,9 @@ public sealed class GdiRenderer
         bool hasLeft = item.BorderLeftWidth > 0 && item.BorderLeftStyle != Layout.BorderStyle.None;
         bool hasRight = item.BorderRightWidth > 0 && item.BorderRightStyle != Layout.BorderStyle.None;
 
+        if (!hasTop && !hasBottom && !hasLeft && !hasRight)
+            return;
+
         if (br > 0 && hasTop && hasBottom && hasLeft && hasRight
             && item.BorderTopWidth == item.BorderBottomWidth
             && item.BorderTopWidth == item.BorderLeftWidth
@@ -104,58 +107,63 @@ public sealed class GdiRenderer
             && item.BorderTopColor == item.BorderLeftColor
             && item.BorderTopColor == item.BorderRightColor)
         {
-            using var pen = new Pen(item.BorderTopColor, item.BorderTopWidth);
-            using var path = CreateRoundedRectPath(b, br);
+            float borderWidth = item.BorderTopWidth;
+            var adjustedRect = new RectangleF(
+                b.X + borderWidth / 2f,
+                b.Y + borderWidth / 2f,
+                Math.Max(0, b.Width - borderWidth),
+                Math.Max(0, b.Height - borderWidth)
+            );
+            float adjustedRadius = Math.Max(0, br - borderWidth / 2f);
+
+            using var pen = new Pen(item.BorderTopColor, borderWidth);
+            using var path = CreateRoundedRectPath(adjustedRect, adjustedRadius);
             g.DrawPath(pen, path);
             return;
         }
 
-        float r = Math.Min(br, Math.Min(b.Width, b.Height) / 2f);
-
         if (hasTop)
         {
             using var pen = new Pen(item.BorderTopColor, item.BorderTopWidth);
-            g.DrawLine(pen, b.Left + r, b.Top, b.Right - r, b.Top);
+            float halfW = item.BorderTopWidth / 2f;
+            g.DrawLine(pen, b.Left, b.Top + halfW, b.Right, b.Top + halfW);
         }
 
         if (hasBottom)
         {
             using var pen = new Pen(item.BorderBottomColor, item.BorderBottomWidth);
-            g.DrawLine(pen, b.Left + r, b.Bottom, b.Right - r, b.Bottom);
+            float halfW = item.BorderBottomWidth / 2f;
+            g.DrawLine(pen, b.Left, b.Bottom - halfW, b.Right, b.Bottom - halfW);
         }
 
         if (hasLeft)
         {
             using var pen = new Pen(item.BorderLeftColor, item.BorderLeftWidth);
-            g.DrawLine(pen, b.Left, b.Top + r, b.Left, b.Bottom - r);
+            float halfW = item.BorderLeftWidth / 2f;
+            g.DrawLine(pen, b.Left + halfW, b.Top, b.Left + halfW, b.Bottom);
         }
 
         if (hasRight)
         {
             using var pen = new Pen(item.BorderRightColor, item.BorderRightWidth);
-            g.DrawLine(pen, b.Right, b.Top + r, b.Right, b.Bottom - r);
+            float halfW = item.BorderRightWidth / 2f;
+            g.DrawLine(pen, b.Right - halfW, b.Top, b.Right - halfW, b.Bottom);
         }
-
-        if (r > 0)
-        {
-            DrawCornerArc(g, item.BorderTopColor, item.BorderTopWidth, b.Left + r, b.Top + r, r, 180, 90);
-            DrawCornerArc(g, item.BorderTopColor, item.BorderTopWidth, b.Right - r, b.Top + r, r, 270, 90);
-            DrawCornerArc(g, item.BorderTopColor, item.BorderTopWidth, b.Left + r, b.Bottom - r, r, 90, 90);
-            DrawCornerArc(g, item.BorderTopColor, item.BorderTopWidth, b.Right - r, b.Bottom - r, r, 0, 90);
-        }
-    }
-
-    private static void DrawCornerArc(Graphics g, Color color, float width, float cx, float cy, float r, float startAngle, float sweepAngle)
-    {
-        if (width <= 0) return;
-        using var pen = new Pen(color, width);
-        g.DrawArc(pen, cx - r, cy - r, r * 2, r * 2, startAngle, sweepAngle);
     }
 
     private static GraphicsPath CreateRoundedRectPath(RectangleF rect, float radius)
     {
-        float d = radius * 2;
+        float d = Math.Max(0, radius * 2);
         var path = new GraphicsPath();
+
+        if (d <= 0)
+        {
+            path.AddRectangle(rect);
+            return path;
+        }
+
+        if (d > rect.Width) d = rect.Width;
+        if (d > rect.Height) d = rect.Height;
 
         path.AddArc(rect.Left, rect.Top, d, d, 180, 90);
         path.AddArc(rect.Right - d, rect.Top, d, d, 270, 90);

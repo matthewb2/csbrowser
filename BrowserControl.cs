@@ -15,7 +15,7 @@ public sealed class BrowserControl
     private LayoutNode? _layoutRoot;
     private BrowserElement? _hoveredElement;
 
-    // µð¹ö±×¿ë ·»´õ¸µ ÇÁ·¹ÀÓ Ä«¿îÅÍ (·Î±× È«¼ö ¹æÁö¿ë ÁÖ±âÀû Ãâ·Â µî¿¡ È°¿ë °¡´É)
+    // ï¿½ï¿½ï¿½ï¿½×¿ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ Ä«ï¿½ï¿½ï¿½ï¿½ (ï¿½Î±ï¿½ È«ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½Ö±ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ ï¿½î¿¡ È°ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½)
     private int _paintCount = 0;
     private readonly List<DisplayItem> _capturedItems = new List<DisplayItem>(512);
 
@@ -228,7 +228,7 @@ public sealed class BrowserControl
 
         _paintCount++;
 
-        // 1. ÇöÀç È­¸é¿¡ ³ëÃâµÇ´Â ºäÆ÷Æ®(Viewport) ¿µ¿ª °è»ê
+        // 1. ï¿½ï¿½ï¿½ï¿½ È­ï¿½é¿¡ ï¿½ï¿½ï¿½ï¿½Ç´ï¿½ ï¿½ï¿½ï¿½ï¿½Æ®(Viewport) ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½
         int viewX = -AutoScrollPosition.X;
         int viewY = -AutoScrollPosition.Y;
         int viewW = Math.Max(Width, 1);
@@ -236,31 +236,33 @@ public sealed class BrowserControl
 
         RectangleF viewportRect = new RectangleF(viewX, viewY, viewW, viewH);
 
-        // 2. ÄõµåÆ®¸®¸¦ ÀÌ¿ëÇØ ÇöÀç ºäÆ÷Æ® ¿µ¿ª¿¡ °ãÄ¡´Â ¾ÆÀÌÅÛµé¸¸ °í¼Ó ÃßÃâ (ÄÃ¸µ)
+        // 2. ï¿½ï¿½ï¿½ï¿½Æ®ï¿½ï¿½ï¿½ï¿½ ï¿½Ì¿ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½Æ® ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½Ä¡ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½Ûµé¸¸ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ (ï¿½Ã¸ï¿½)
         
         _capturedItems.Clear();
         _hitTestTree.Query(viewportRect, _capturedItems);
 
-        // [µð¹ö±ë ·Î±×] ¾Ë°í¸®ÁòÀÌ ¿Ã¹Ù¸£°Ô µ¿ÀÛÇÏ´ÂÁö È®ÀÎÇÒ ¼ö ÀÖ´Â »ó¼¼ ÁöÇ¥ Ãâ·Â
-        // (½ºÅ©·ÑÇÏ°Å³ª Ã¢ Å©±â¸¦ ¹Ù²Ü ¶§ ÀüÃ¼ ¾ÆÀÌÅÛ Áß ¸î °³¸¸ Ãß·Á³»¾î ±×¸®´ÂÁö È®ÀÎÇÒ ¼ö ÀÖ½À´Ï´Ù)
+        // [ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½Î±ï¿½] ï¿½Ë°ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½Ã¹Ù¸ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½Ï´ï¿½ï¿½ï¿½ È®ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ ï¿½Ö´ï¿½ ï¿½ï¿½ ï¿½ï¿½Ç¥ ï¿½ï¿½ï¿½
+        // (ï¿½ï¿½Å©ï¿½ï¿½ï¿½Ï°Å³ï¿½ Ã¢ Å©ï¿½â¸¦ ï¿½Ù²ï¿½ ï¿½ï¿½ ï¿½ï¿½Ã¼ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ß·ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½×¸ï¿½ï¿½ï¿½ï¿½ï¿½ È®ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ ï¿½Ö½ï¿½ï¿½Ï´ï¿½)
         Log.WriteLine($"[Paint #{_paintCount}] Viewport: [X={viewX}, Y={viewY}, W={viewW}, H={viewH}] | " +
                       $"Total Items: {_displayList.Count} | " +
                       $"Visible (Culling Result): {_capturedItems.Count} items rendered " +
                       $"({(double)_capturedItems.Count / Math.Max(_displayList.Count, 1) * 100:F1}% of total)");
 
-        // 3. ½ºÅ©·Ñ À§Ä¡¿¡ ¸ÂÃß¾î ±×·¡ÇÈ½º ÁÂÇ¥°è ÀÌµ¿
+        // 3. ï¿½ï¿½Å©ï¿½ï¿½ ï¿½ï¿½Ä¡ï¿½ï¿½ ï¿½ï¿½ï¿½ß¾ï¿½ ï¿½×·ï¿½ï¿½È½ï¿½ ï¿½ï¿½Ç¥ï¿½ï¿½ ï¿½Ìµï¿½
         e.Graphics.TranslateTransform(AutoScrollPosition.X, AutoScrollPosition.Y);
 
-        // 4. ÅØ½ºÆ® ¹× ±×·¡ÇÈ Ç°Áú ¼³Á¤
+        // 4. ï¿½Ø½ï¿½Æ® ï¿½ï¿½ ï¿½×·ï¿½ï¿½ï¿½ Ç°ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½
         e.Graphics.TextRenderingHint = System.Drawing.Text.TextRenderingHint.ClearTypeGridFit;
         e.Graphics.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
 
         var renderer = new GdiRenderer();
 
-        // 5. °¡½Ã ¿µ¿ªÀÇ ¾ÆÀÌÅÛµé¸¸ È­¸é¿¡ Á÷Á¢ ´ÙÀÌ·ºÆ® ·»´õ¸µ
-        foreach (var item in _capturedItems)
+        foreach (var item in _displayList)
         {
-            renderer.RenderItem(e.Graphics, item);
+            if (item.Bounds.IntersectsWith(viewportRect))
+            {
+                renderer.RenderItem(e.Graphics, item);
+            }
         }
     }
 

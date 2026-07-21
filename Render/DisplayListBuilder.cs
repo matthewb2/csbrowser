@@ -96,6 +96,30 @@ public sealed class DisplayListBuilder
 
             items.Add(item);
         }
+        else if (be != null && resolved.BackgroundColor.HasValue)
+        {
+            var item = new DisplayItem
+            {
+                Bounds = node.Bounds,
+                BackgroundColor = resolved.BackgroundColor,
+                Element = be,
+                BorderTopWidth = resolved.BorderTop.Width,
+                BorderTopStyle = resolved.BorderTop.Style,
+                BorderTopColor = resolved.BorderTop.Color,
+                BorderBottomWidth = resolved.BorderBottom.Width,
+                BorderBottomStyle = resolved.BorderBottom.Style,
+                BorderBottomColor = resolved.BorderBottom.Color,
+                BorderLeftWidth = resolved.BorderLeft.Width,
+                BorderLeftStyle = resolved.BorderLeft.Style,
+                BorderLeftColor = resolved.BorderLeft.Color,
+                BorderRightWidth = resolved.BorderRight.Width,
+                BorderRightStyle = resolved.BorderRight.Style,
+                BorderRightColor = resolved.BorderRight.Color,
+                BorderRadius = resolved.BorderRadius,
+            };
+
+            items.Add(item);
+        }
 
         foreach (var child in node.Children)
             Walk(child, items, resolved);
