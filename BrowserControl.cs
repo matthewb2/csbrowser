@@ -14,8 +14,8 @@ public sealed class BrowserControl
     private BrowserElement? _document;
     private LayoutNode? _layoutRoot;
     private BrowserElement? _hoveredElement;
+    private DisplayItem? _hoveredDisplayItem;
 
-    // 렌더링에 사용되는 렌더 카운트 (로그 홍보 용도를 주기 위해 뷰에 활용 중)
     private int _paintCount = 0;
     private readonly List<DisplayItem> _capturedItems = new List<DisplayItem>(512);
 
@@ -80,8 +80,6 @@ public sealed class BrowserControl
 
         Log.WriteLine($"[BrowserControl] Built new display list. Total DisplayItems: {_displayList?.Count ?? 0}");
 
-        BuildHitTestTree();
-
         if (_layoutRoot != null)
         {
             float docHeight = _layoutRoot.Bounds.Y + _layoutRoot.Bounds.Height + 20;
@@ -89,6 +87,7 @@ public sealed class BrowserControl
             Log.WriteLine($"[BrowserControl] Updated AutoScrollMinSize: {AutoScrollMinSize}");
         }
 
+        BuildHitTestTree();
         Invalidate();
     }
 
@@ -134,19 +133,67 @@ public sealed class BrowserControl
 
         if (oldAncestor != null)
         {
-            Log.WriteLine($"[Hover] CLEAR hover on tag=<{oldAncestor.TagName}> id={oldAncestor.Id}");
+            //Log.WriteLine($"[Hover] CLEAR hover on tag=<{oldAncestor.TagName}> id={oldAncestor.Id}");
             ClearHoverRecursive(oldAncestor);
-            RebuildDisplayList();
+            RebuildDisplayList(GetPseudoStyledBounds(oldAncestor));
+            //Invalidate();
         }
 
         _hoveredElement = found;
 
         if (foundAncestor != null)
         {
-            Log.WriteLine($"[Hover] SET hover on tag=<{foundAncestor.TagName}> id={foundAncestor.Id}");
+            //Log.WriteLine($"[Hover] SET hover on tag=<{foundAncestor.TagName}> id={foundAncestor.Id}");
             SetHoverRecursive(foundAncestor);
-            RebuildDisplayList();
+            RebuildDisplayList(GetPseudoStyledBounds(foundAncestor));
+            //Invalidate();
         }
+
+        if (foundItem != _hoveredDisplayItem)
+        {
+            if (_hoveredDisplayItem != null)
+                Invalidate(TransformToClient(_hoveredDisplayItem.Bounds));
+
+            _hoveredDisplayItem = foundItem;
+
+            if (_hoveredDisplayItem != null)
+                Invalidate(TransformToClient(_hoveredDisplayItem.Bounds));
+        }
+    }
+
+    private RectangleF GetPseudoStyledBounds(BrowserElement element)
+    {
+        if (_displayList == null)
+            return RectangleF.Empty;
+
+        float minX = float.MaxValue, minY = float.MaxValue;
+        float maxX = float.MinValue, maxY = float.MinValue;
+        bool found = false;
+
+        foreach (var item in _displayList)
+        {
+            if (item.Element == element)
+            {
+                found = true;
+                if (item.Bounds.X < minX) minX = item.Bounds.X;
+                if (item.Bounds.Y < minY) minY = item.Bounds.Y;
+                if (item.Bounds.Right > maxX) maxX = item.Bounds.Right;
+                if (item.Bounds.Bottom > maxY) maxY = item.Bounds.Bottom;
+            }
+        }
+
+        return found
+            ? RectangleF.FromLTRB(minX, minY, maxX, maxY)
+            : RectangleF.Empty;
+    }
+
+    private Rectangle TransformToClient(RectangleF docBounds)
+    {
+        int x = (int)(docBounds.X - AutoScrollPosition.X);
+        int y = (int)(docBounds.Y - AutoScrollPosition.Y);
+        int w = (int)Math.Ceiling(docBounds.Width);
+        int h = (int)Math.Ceiling(docBounds.Height);
+        return new Rectangle(x, y, w, h);
     }
 
     private static void SetHoverRecursive(BrowserElement element)
@@ -171,37 +218,54 @@ public sealed class BrowserControl
             if (ancestor != null)
             {
                 ClearHoverRecursive(ancestor);
-                RebuildDisplayList();
+                RebuildDisplayList(GetPseudoStyledBounds(ancestor));
             }
             _hoveredElement = null;
-            Log.WriteLine("[Hover] Cleared all hover states due to leave.");
         }
+
+        if (_hoveredDisplayItem != null)
+        {
+            Invalidate(TransformToClient(_hoveredDisplayItem.Bounds));
+            _hoveredDisplayItem = null;
+        }
+
+        Log.WriteLine("[Hover] Cleared all hover states due to leave.");
     }
 
-    private void RebuildDisplayList()
+    private void RebuildDisplayList(RectangleF dirtyRegion)
     {
         if (_layoutRoot == null)
             return;
 
-        Log.WriteLine("[BrowserControl] Rebuilding display list due to style/hover change...");
+        //Log.WriteLine("[BrowserControl] Rebuilding display list due to style/hover change...");
 
         if (_displayList != null)
         {
             foreach (var item in _displayList)
                 item.Unref();
         }
-
+        
         var builder = new DisplayListBuilder();
         _displayList = builder.Build(_layoutRoot);
 
-        BuildHitTestTree();
-        Invalidate();
+        //BuildHitTestTree();
+        
+
+        if (dirtyRegion != RectangleF.Empty)
+            Invalidate(TransformToClient(dirtyRegion));
+        else
+            Invalidate();
     }
 
     private void BuildHitTestTree()
     {
-        float treeW = Math.Max(Width, 1);
-        float treeH = Math.Max(Math.Max(AutoScrollMinSize.Height, Height), 1);
+        float treeW = 1;
+        float treeH = 1;
+        if (_layoutRoot != null)
+        {
+            treeW = Math.Max(_layoutRoot.Bounds.Right + 10, 1);
+            treeH = Math.Max(_layoutRoot.Bounds.Bottom + 10, 1);
+        }
         _hitTestTree = new QuadtreeNode(new RectangleF(0, 0, treeW, treeH));
 
         int insertCount = 0;
@@ -228,7 +292,6 @@ public sealed class BrowserControl
 
         _paintCount++;
 
-        // 1. 현재 화면에 표시되는 영역(Viewport) 범위 계산
         int viewX = -AutoScrollPosition.X;
         int viewY = -AutoScrollPosition.Y;
         int viewW = Math.Max(Width, 1);
@@ -238,39 +301,16 @@ public sealed class BrowserControl
 
         var renderer = new GdiRenderer();
 
-        // 최초 화면 그리기(첫 번째 페인트)일 때는 쿼드트리를 사용하지 않고 전체 순회 렌더링 수행
-        if (_paintCount == 1)
+        Log.WriteLine($"[Paint #{_paintCount}] Initial Paint: Rendering all {_displayList.Count} items without Quadtree culling.");
+
+        e.Graphics.TranslateTransform(AutoScrollPosition.X, AutoScrollPosition.Y);
+
+        foreach (var item in _displayList)
         {
-            Log.WriteLine($"[Paint #{_paintCount}] Initial Paint: Rendering all {_displayList.Count} items without Quadtree culling.");
-
-            e.Graphics.TranslateTransform(AutoScrollPosition.X, AutoScrollPosition.Y);
-
-            foreach (var item in _displayList)
-            {
-                renderer.RenderItem(e.Graphics, item);
-            }
+            renderer.RenderItem(e.Graphics, item);
         }
-        else
-        {
-            // 화면을 다시 그릴 때부터 쿼드트리 기반 컬링 수행
-            _capturedItems.Clear();
-            _hitTestTree.Query(viewportRect, _capturedItems);
 
-            Log.WriteLine($"[Paint #{_paintCount}] Viewport: [X={viewX}, Y={viewY}, W={viewW}, H={viewH}] | " +
-                          $"Total Items: {_displayList.Count} | " +
-                          $"Visible (Culling Result): {_capturedItems.Count} items rendered " +
-                          $"({(double)_capturedItems.Count / Math.Max(_displayList.Count, 1) * 100:F1}% of total)");
 
-            e.Graphics.TranslateTransform(AutoScrollPosition.X, AutoScrollPosition.Y);
-
-            foreach (var item in _displayList)
-            {
-                if (item.Bounds.IntersectsWith(viewportRect))
-                {
-                    renderer.RenderItem(e.Graphics, item);
-                }
-            }
-        }
     }
 
     private void DispatchMouseEvent(

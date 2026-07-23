@@ -114,23 +114,4 @@ public sealed class QuadtreeNode
         return null;
     }
 
-    public void QueryRegion(RectangleF region, List<DisplayItem> result)
-    {
-        if (!_bounds.IntersectsWith(region))
-            return;
-
-        if (_children != null)
-        {
-            foreach (var child in _children)
-                child.QueryRegion(region, result);
-        }
-        else if (_items != null)
-        {
-            foreach (var item in _items)
-            {
-                if (item.Bounds.IntersectsWith(region))
-                    result.Add(item);
-            }
-        }
-    }
 }

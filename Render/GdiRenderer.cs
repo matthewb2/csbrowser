@@ -17,11 +17,11 @@ public sealed class GdiRenderer
     {
         if (!string.IsNullOrEmpty(item.Text))
         {
-            Log.WriteLine($"[RenderItem] text='{item.Text}' TextAlign={item.TextAlign} Bounds=({item.Bounds.X:F0},{item.Bounds.Y:F0} {item.Bounds.Width:F0}x{item.Bounds.Height:F0})");
+         //   Log.WriteLine($"[RenderItem] text='{item.Text}' TextAlign={item.TextAlign} Bounds=({item.Bounds.X:F0},{item.Bounds.Y:F0} {item.Bounds.Width:F0}x{item.Bounds.Height:F0})");
         }
         else
         {
-            Log.WriteLine($"[RenderItem] <{(item.Element?.TagName ?? "?")}> (no text) Bounds=({item.Bounds.X:F0},{item.Bounds.Y:F0} {item.Bounds.Width:F0}x{item.Bounds.Height:F0})");
+         //   Log.WriteLine($"[RenderItem] <{(item.Element?.TagName ?? "?")}> (no text) Bounds=({item.Bounds.X:F0},{item.Bounds.Y:F0} {item.Bounds.Width:F0}x{item.Bounds.Height:F0})");
         }
 
         if (item.BackgroundColor.HasValue)
