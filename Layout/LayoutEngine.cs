@@ -378,6 +378,14 @@ public sealed class LayoutEngine
         {
             foreach (var child in node.Children)
             {
+
+                // 화면에 보이지 않는 요소는 레이아웃 계산 및 높이 합산에서 제외
+                if (child.Style.Display == DisplayType.None)
+                {
+                    child.Bounds = RectangleF.Empty;
+                    continue;
+                }
+
                 LayoutBlock(child, contentX, currentY, contentWidth);
                 ApplyTextAlignChild(node, child, contentX, contentWidth);
 
