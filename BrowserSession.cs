@@ -16,11 +16,8 @@ public sealed class BrowserSession : IDisposable
     public LayoutNode? LayoutRoot => _layoutRoot;
     public List<DisplayItem>? DisplayList => _displayList;
     public QuadtreeNode? HitTestTree => _hitTestTree;
-
     public readonly Dictionary<BrowserElement, RectangleF> ElementBoundsCache = new();
-
     public JsEngine? JsEngine { get; private set; }
-
     private int _width;
 
     public void LoadDocument(BrowserElement root, int width)
@@ -36,7 +33,7 @@ public sealed class BrowserSession : IDisposable
         _width = width;
         ExecuteScripts();
         Relayout(width);
-        Log.WriteLine("[BrowserSession] LoadDocument finished.");
+        //Log.WriteLine("[BrowserSession] LoadDocument finished.");
     }
 
     public void Relayout(int width)
@@ -46,7 +43,7 @@ public sealed class BrowserSession : IDisposable
         if (_document == null)
             return;
 
-        Log.WriteLine("[BrowserSession] Relayout started. Width = " + width);
+        //Log.WriteLine("[BrowserSession] Relayout started. Width = " + width);
 
         if (_layoutRoot != null)
         {
@@ -67,7 +64,7 @@ public sealed class BrowserSession : IDisposable
         var builder = new DisplayListBuilder();
         _displayList = builder.Build(_layoutRoot);
 
-        Log.WriteLine($"[BrowserSession] Built new display list. Total DisplayItems: {_displayList?.Count ?? 0}");
+        //Log.WriteLine($"[BrowserSession] Built new display list. Total DisplayItems: {_displayList?.Count ?? 0}");
 
         if (_layoutRoot != null)
         {
