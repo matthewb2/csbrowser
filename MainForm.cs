@@ -58,7 +58,7 @@ public partial class MainForm : Form
         </div>
         <div>
                   <form name="myform">
-          <input type="submit" value="눌러"/>
+          <input type="submit" value="Done"/>
         </form>
         </div>
 

@@ -39,86 +39,55 @@ public sealed class DisplayListBuilder
                 + $" text='{(be.Text ?? "")}'");
         }
 
-        if (be != null && !string.IsNullOrEmpty(be.ImagePath))
+        if (be != null)
         {
-            var item = new DisplayItem
-            {
-                IsImage = true,
-                Image = LoadImage(be.ImagePath),
-                Bounds = node.Bounds,
-                BackgroundColor = resolved.BackgroundColor,
-                Element = be,
-                BorderTopWidth = resolved.BorderTop.Width,
-                BorderTopStyle = resolved.BorderTop.Style,
-                BorderTopColor = resolved.BorderTop.Color,
-                BorderBottomWidth = resolved.BorderBottom.Width,
-                BorderBottomStyle = resolved.BorderBottom.Style,
-                BorderBottomColor = resolved.BorderBottom.Color,
-                BorderLeftWidth = resolved.BorderLeft.Width,
-                BorderLeftStyle = resolved.BorderLeft.Style,
-                BorderLeftColor = resolved.BorderLeft.Color,
-                BorderRightWidth = resolved.BorderRight.Width,
-                BorderRightStyle = resolved.BorderRight.Style,
-                BorderRightColor = resolved.BorderRight.Color,
-                BorderRadius = resolved.BorderRadius,
-            };
+            // 이미지가 있거나, 텍스트가 있거나, 배경색이 있거나, 테두리가 있는 경우 모두 DisplayItem을 생성합니다.
+            bool hasBorder = resolved.BorderTop.Width > 0 || resolved.BorderBottom.Width > 0 ||
+                             resolved.BorderLeft.Width > 0 || resolved.BorderRight.Width > 0;
 
-            items.Add(item);
-        }
-        else if (be != null && !string.IsNullOrEmpty(be.Text))
-        {
-            var item = new DisplayItem
+            if (!string.IsNullOrEmpty(be.ImagePath) || !string.IsNullOrEmpty(be.Text) ||
+                resolved.BackgroundColor.HasValue || hasBorder)
             {
-                Text = be.Text,
-                Bounds = node.Bounds,
-                FontSize = resolved.FontSize,
-                FontFamily = resolved.FontFamily,
-                IsBold = resolved.IsBold,
-                Color = resolved.Color,
-                BackgroundColor = resolved.BackgroundColor,
-                TextDecoration = resolved.TextDecoration,
-                TextAlign = resolved.TextAlign,
-                Element = be,
-                BorderTopWidth = resolved.BorderTop.Width,
-                BorderTopStyle = resolved.BorderTop.Style,
-                BorderTopColor = resolved.BorderTop.Color,
-                BorderBottomWidth = resolved.BorderBottom.Width,
-                BorderBottomStyle = resolved.BorderBottom.Style,
-                BorderBottomColor = resolved.BorderBottom.Color,
-                BorderLeftWidth = resolved.BorderLeft.Width,
-                BorderLeftStyle = resolved.BorderLeft.Style,
-                BorderLeftColor = resolved.BorderLeft.Color,
-                BorderRightWidth = resolved.BorderRight.Width,
-                BorderRightStyle = resolved.BorderRight.Style,
-                BorderRightColor = resolved.BorderRight.Color,
-                BorderRadius = resolved.BorderRadius,
-            };
+                var item = new DisplayItem
+                {
+                    Bounds = node.Bounds,
+                    Element = be,
+                    BackgroundColor = resolved.BackgroundColor,
+                    BorderTopWidth = resolved.BorderTop.Width,
+                    BorderTopStyle = resolved.BorderTop.Style,
+                    BorderTopColor = resolved.BorderTop.Color,
+                    BorderBottomWidth = resolved.BorderBottom.Width,
+                    BorderBottomStyle = resolved.BorderBottom.Style,
+                    BorderBottomColor = resolved.BorderBottom.Color,
+                    BorderLeftWidth = resolved.BorderLeft.Width,
+                    BorderLeftStyle = resolved.BorderLeft.Style,
+                    BorderLeftColor = resolved.BorderLeft.Color,
+                    BorderRightWidth = resolved.BorderRight.Width,
+                    BorderRightStyle = resolved.BorderRight.Style,
+                    BorderRightColor = resolved.BorderRight.Color,
+                    BorderRadius = resolved.BorderRadius,
+                };
 
-            items.Add(item);
-        }
-        else if (be != null && resolved.BackgroundColor.HasValue)
-        {
-            var item = new DisplayItem
-            {
-                Bounds = node.Bounds,
-                BackgroundColor = resolved.BackgroundColor,
-                Element = be,
-                BorderTopWidth = resolved.BorderTop.Width,
-                BorderTopStyle = resolved.BorderTop.Style,
-                BorderTopColor = resolved.BorderTop.Color,
-                BorderBottomWidth = resolved.BorderBottom.Width,
-                BorderBottomStyle = resolved.BorderBottom.Style,
-                BorderBottomColor = resolved.BorderBottom.Color,
-                BorderLeftWidth = resolved.BorderLeft.Width,
-                BorderLeftStyle = resolved.BorderLeft.Style,
-                BorderLeftColor = resolved.BorderLeft.Color,
-                BorderRightWidth = resolved.BorderRight.Width,
-                BorderRightStyle = resolved.BorderRight.Style,
-                BorderRightColor = resolved.BorderRight.Color,
-                BorderRadius = resolved.BorderRadius,
-            };
+                // 이미지 처리
+                if (!string.IsNullOrEmpty(be.ImagePath))
+                {
+                    item.IsImage = true;
+                    item.Image = LoadImage(be.ImagePath);
+                }
+                // 텍스트 처리
+                else if (!string.IsNullOrEmpty(be.Text))
+                {
+                    item.Text = be.Text;
+                    item.FontSize = resolved.FontSize;
+                    item.FontFamily = resolved.FontFamily;
+                    item.IsBold = resolved.IsBold;
+                    item.Color = resolved.Color;
+                    item.TextDecoration = resolved.TextDecoration;
+                    item.TextAlign = resolved.TextAlign;
+                }
 
-            items.Add(item);
+                items.Add(item);
+            }
         }
 
         foreach (var child in node.Children)
