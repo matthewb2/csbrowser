@@ -77,6 +77,35 @@ public sealed class HtmlLoader
                 Log.WriteLine($"  [HtmlLoader]  <img> resolved: {node.ImagePath} exists={File.Exists(node.ImagePath)}");
             }
         }
+        else if (element is IHtmlInputElement input)
+        {
+            var inputType = input.Type?.ToLowerInvariant() ?? "";
+            var inputValue = input.Value ?? "";
+
+            node.InputType = inputType;
+            node.Placeholder = input.Placeholder ?? "";
+
+            if (inputType == "submit")
+            {
+                node.Text = string.IsNullOrEmpty(inputValue) ? "Submit" : inputValue;
+                Log.WriteLine($"  [HtmlLoader]  <input type=\"submit\"> value='{node.Text}'");
+            }
+            else if (inputType is "button")
+            {
+                node.Text = string.IsNullOrEmpty(inputValue) ? "" : inputValue;
+                Log.WriteLine($"  [HtmlLoader]  <input type=\"button\"> value='{node.Text}'");
+            }
+            else if (inputType is "checkbox" or "radio")
+            {
+                node.IsChecked = input.IsChecked;
+                Log.WriteLine($"  [HtmlLoader]  <input type=\"{inputType}\"> checked={node.IsChecked}");
+            }
+            else if (inputType is "text" or "password" or "email" or "number" or "search" or "tel" or "url")
+            {
+                node.Text = inputValue;
+                Log.WriteLine($"  [HtmlLoader]  <input type=\"{inputType}\"> value='{node.Text}' placeholder='{node.Placeholder}'");
+            }
+        }
 
         bool hasContentChildren = false;
         foreach (var child in element.ChildNodes)
@@ -104,7 +133,7 @@ public sealed class HtmlLoader
             }
         }
 
-        if (!hasContentChildren)
+        if (!hasContentChildren && node.TagName != "input")
         {
             node.Text = element.TextContent.Trim();
         }

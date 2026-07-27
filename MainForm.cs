@@ -57,10 +57,12 @@ public partial class MainForm : Form
             </div>
         </div>
         <div>
-            <li>One</li>
-            <li>Two</li>
-            <li>Three</li>
+                  <form name="myform">
+          <input type="submit" value="눌러"/>
+        </form>
         </div>
+
+
 
         <script>
             var el = document.getElementById('_one'); 
@@ -81,12 +83,14 @@ public partial class MainForm : Form
         """;
 
         await LoadHtml(html);
+        
         */
-
         var resDir = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Res");
         var htmlPath = Path.Combine(resDir, "index.html");
         var html = await File.ReadAllTextAsync(htmlPath);
         await LoadHtml(html, resDir);
+        
+        
     }
 
     private async void OnOpenFile(

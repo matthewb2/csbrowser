@@ -13,6 +13,9 @@ public sealed class BrowserElement : RefCounted
     public string ClassName { get; set; } = "";
     public string ScriptContent { get; set; } = "";
     public string ImagePath { get; set; } = "";
+    public string InputType { get; set; } = "";
+    public string Placeholder { get; set; } = "";
+    public bool IsChecked { get; set; }
 
     public IElement? Source;
     public ICssStyleDeclaration? InlineStyle;

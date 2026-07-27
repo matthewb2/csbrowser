@@ -189,6 +189,58 @@ public sealed class LayoutEngine
                 style.Display = DisplayType.Inline;
                 break;
 
+            case IHtmlInputElement inputEl:
+                var inputType = (inputEl.GetAttribute("type") ?? "").ToLowerInvariant();
+                if (inputType == "submit" || inputType == "button" || inputType == "reset")
+                {
+                    style.Display = DisplayType.Block;
+                    if (style.MarginTop == 0) style.MarginTop = 4;
+                    if (style.MarginBottom == 0) style.MarginBottom = 4;
+                    if (style.PaddingTop == 0) style.PaddingTop = 6;
+                    if (style.PaddingBottom == 0) style.PaddingBottom = 6;
+                    if (style.PaddingLeft == 0) style.PaddingLeft = 12;
+                    if (style.PaddingRight == 0) style.PaddingRight = 12;
+                    if (!style.SetProperties.Contains("background-color"))
+                        style.BackgroundColor = Color.FromArgb(224, 224, 224);
+                    if (!style.SetProperties.Contains("border"))
+                    {
+                        style.BorderTop = new BorderSide { Width = 1, Style = BorderStyle.Solid, Color = Color.FromArgb(120, 120, 120) };
+                        style.BorderBottom = new BorderSide { Width = 1, Style = BorderStyle.Solid, Color = Color.FromArgb(120, 120, 120) };
+                        style.BorderLeft = new BorderSide { Width = 1, Style = BorderStyle.Solid, Color = Color.FromArgb(120, 120, 120) };
+                        style.BorderRight = new BorderSide { Width = 1, Style = BorderStyle.Solid, Color = Color.FromArgb(120, 120, 120) };
+                    }
+                    if (!style.SetProperties.Contains("border-radius"))
+                        style.BorderRadius = 2;
+                    if (!style.SetProperties.Contains("text-align"))
+                        style.TextAlign = TextAlignType.Center;
+                    Log.WriteLine($"  [Layout] <input type=\"{inputType}\"> default button styles applied");
+                }
+                else if (inputType is "text" or "password" or "email" or "number" or "search" or "tel" or "url" or "")
+                {
+                    style.Display = DisplayType.Block;
+                    if (style.MarginTop == 0) style.MarginTop = 2;
+                    if (style.MarginBottom == 0) style.MarginBottom = 2;
+                    if (style.PaddingTop == 0) style.PaddingTop = 4;
+                    if (style.PaddingBottom == 0) style.PaddingBottom = 4;
+                    if (style.PaddingLeft == 0) style.PaddingLeft = 6;
+                    if (style.PaddingRight == 0) style.PaddingRight = 6;
+                    if (!style.SetProperties.Contains("background-color"))
+                        style.BackgroundColor = Color.White;
+                    if (!style.SetProperties.Contains("border"))
+                    {
+                        style.BorderTop = new BorderSide { Width = 1, Style = BorderStyle.Solid, Color = Color.FromArgb(120, 120, 120) };
+                        style.BorderBottom = new BorderSide { Width = 1, Style = BorderStyle.Solid, Color = Color.FromArgb(120, 120, 120) };
+                        style.BorderLeft = new BorderSide { Width = 1, Style = BorderStyle.Solid, Color = Color.FromArgb(120, 120, 120) };
+                        style.BorderRight = new BorderSide { Width = 1, Style = BorderStyle.Solid, Color = Color.FromArgb(120, 120, 120) };
+                    }
+                    if (!style.SetProperties.Contains("border-radius"))
+                        style.BorderRadius = 2;
+                    if (!style.SetProperties.Contains("width"))
+                        style.Width = 200;
+                    Log.WriteLine($"  [Layout] <input type=\"{inputType}\"> default text input styles applied");
+                }
+                break;
+
             default:
                 ApplyDefaultStylesByLocalName(style, element);
                 break;

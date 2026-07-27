@@ -44,7 +44,33 @@ public sealed class GdiRenderer
         {
             g.DrawImage(item.Image, item.Bounds);
         }
+        else if (item.Element != null
+            && item.Element.TagName.Equals("input", StringComparison.OrdinalIgnoreCase))
+        {
+            var inputType = item.Element.InputType;
+            if (inputType is "checkbox" or "radio")
+            {
+                RenderCheckbox(g, item);
+            }
+            else
+            {
+                RenderInputText(g, item);
+            }
+        }
         else if (!string.IsNullOrEmpty(item.Text))
+        {
+            RenderText(g, item);
+        }
+    }
+
+    private void RenderInputText(Graphics g, DisplayItem item)
+    {
+        var be = item.Element;
+        var b = item.Bounds;
+        string inputType = be?.InputType ?? "text";
+        bool isButton = inputType is "button" or "submit" or "reset";
+
+        if (!string.IsNullOrEmpty(item.Text))
         {
             using var brush = new SolidBrush(item.Color);
             float fontSize = Math.Max(item.FontSize, 1);
@@ -56,24 +82,112 @@ public sealed class GdiRenderer
             var fontStyle = item.IsBold ? FontStyle.Bold : FontStyle.Regular;
             using var font = new Font(fontFamily, fontSize, fontStyle, GraphicsUnit.Pixel);
 
-            using var format = new StringFormat(StringFormatFlags.LineLimit);
-            format.Alignment = item.TextAlign switch
-            {
-                TextAlignType.Center => StringAlignment.Center,
-                TextAlignType.Right => StringAlignment.Far,
-                _ => StringAlignment.Near
-            };
-            format.LineAlignment = StringAlignment.Near;
-            format.Trimming = StringTrimming.Word;
+            using var format = new StringFormat();
+            format.Alignment = isButton ? StringAlignment.Center : StringAlignment.Near;
+            format.LineAlignment = StringAlignment.Center;
+            format.Trimming = StringTrimming.None;
+            format.FormatFlags = StringFormatFlags.NoWrap;
 
-            // GdiRenderer.RenderItem ������ �ؽ�Ʈ ��� ����
+            float padL = isButton ? 0 : item.Bounds.Width * 0.05f;
+            var textRect = new RectangleF(b.X + padL, b.Y, b.Width - padL, b.Height);
+
             g.TextRenderingHint = System.Drawing.Text.TextRenderingHint.ClearTypeGridFit;
-            g.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
-
-            g.DrawString(item.Text, font, brush, item.Bounds, format);
-
-            DrawTextDecoration(g, item, font);
+            g.DrawString(item.Text, font, brush, textRect, format);
         }
+        else if (be != null && !string.IsNullOrEmpty(be.Placeholder) && !isButton)
+        {
+            var fontFamily = item.FontFamily;
+            if (!IsFontInstalled(fontFamily))
+                fontFamily = "Arial";
+
+            using var font = new Font(fontFamily, Math.Max(item.FontSize, 1), FontStyle.Regular, GraphicsUnit.Pixel);
+            using var brush = new SolidBrush(Color.FromArgb(150, 150, 150));
+
+            using var format = new StringFormat();
+            format.Alignment = StringAlignment.Near;
+            format.LineAlignment = StringAlignment.Center;
+            format.Trimming = StringTrimming.None;
+            format.FormatFlags = StringFormatFlags.NoWrap;
+
+            float padL = b.Width * 0.05f;
+            var textRect = new RectangleF(b.X + padL, b.Y, b.Width - padL, b.Height);
+            g.DrawString(be.Placeholder, font, brush, textRect, format);
+        }
+    }
+
+    private static void RenderCheckbox(Graphics g, DisplayItem item)
+    {
+        var be = item.Element;
+        if (be == null) return;
+
+        var b = item.Bounds;
+        float boxSize = Math.Min(b.Height * 0.7f, 14f);
+        float boxX = b.X + 2;
+        float boxY = b.Y + (b.Height - boxSize) / 2;
+
+        using var bgBrush = new SolidBrush(Color.White);
+        g.FillRectangle(bgBrush, boxX, boxY, boxSize, boxSize);
+
+        using var pen = new Pen(Color.FromArgb(120, 120, 120));
+        g.DrawRectangle(pen, boxX, boxY, boxSize, boxSize);
+
+        if (be.IsChecked)
+        {
+            using var checkPen = new Pen(Color.Black, 2f);
+            float cx = boxX + boxSize / 2;
+            float cy = boxY + boxSize / 2;
+            g.DrawLine(checkPen, cx - 3, cy, cx - 1, cy + 3);
+            g.DrawLine(checkPen, cx - 1, cy + 3, cx + 4, cy - 3);
+        }
+
+        if (!string.IsNullOrEmpty(item.Text))
+        {
+            using var brush = new SolidBrush(item.Color);
+            float fontSize = Math.Max(item.FontSize, 1);
+            var fontFamily = item.FontFamily;
+            if (!IsFontInstalled(fontFamily))
+                fontFamily = "Arial";
+            using var font = new Font(fontFamily, fontSize, FontStyle.Regular, GraphicsUnit.Pixel);
+
+            using var format = new StringFormat();
+            format.Alignment = StringAlignment.Near;
+            format.LineAlignment = StringAlignment.Center;
+            format.Trimming = StringTrimming.None;
+            format.FormatFlags = StringFormatFlags.NoWrap;
+
+            var textRect = new RectangleF(boxX + boxSize + 4, b.Y, b.Width - boxSize - 6, b.Height);
+            g.DrawString(item.Text, font, brush, textRect, format);
+        }
+    }
+
+    private static void RenderText(Graphics g, DisplayItem item)
+    {
+        using var brush = new SolidBrush(item.Color);
+        float fontSize = Math.Max(item.FontSize, 1);
+
+        var fontFamily = item.FontFamily;
+        if (!IsFontInstalled(fontFamily))
+            fontFamily = "Arial";
+
+        var fontStyle = item.IsBold ? FontStyle.Bold : FontStyle.Regular;
+        using var font = new Font(fontFamily, fontSize, fontStyle, GraphicsUnit.Pixel);
+
+        using var format = new StringFormat(StringFormatFlags.LineLimit);
+        format.Alignment = item.TextAlign switch
+        {
+            TextAlignType.Center => StringAlignment.Center,
+            TextAlignType.Right => StringAlignment.Far,
+            _ => StringAlignment.Near
+        };
+        format.LineAlignment = StringAlignment.Near;
+        format.Trimming = StringTrimming.Word;
+
+        g.TextRenderingHint = System.Drawing.Text.TextRenderingHint.ClearTypeGridFit;
+        g.SmoothingMode = SmoothingMode.AntiAlias;
+
+        g.DrawString(item.Text, font, brush, item.Bounds, format);
+
+        DrawTextDecoration(g, item, font);
     }
 
     private static readonly HashSet<string> _installedFonts;

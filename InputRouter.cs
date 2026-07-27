@@ -284,7 +284,7 @@ public sealed class InputRouter
 
     private static bool IsTextInputType(BrowserElement element)
     {
-        var type = element.Source?.GetAttribute("type")?.ToLowerInvariant();
+        var type = element.InputType;
         return string.IsNullOrEmpty(type) ||
             type is "text" or "password" or "email" or "number" or "search" or "tel" or "url";
     }
