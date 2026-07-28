@@ -30,7 +30,7 @@ public partial class MainForm : Form
         Controls.Add(menu);
         MainMenuStrip = menu;
 
-        /*
+        
         string html =
         """
         <html>
@@ -60,6 +60,8 @@ public partial class MainForm : Form
                   <form name="myform">
           <input type="submit" value="Done"/>
         </form>
+        <a>This is a link</a>
+
         </div>
 
 
@@ -83,13 +85,13 @@ public partial class MainForm : Form
         """;
 
         await LoadHtml(html);
+        /*
         
-        */
         var resDir = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Res");
         var htmlPath = Path.Combine(resDir, "index.html");
         var html = await File.ReadAllTextAsync(htmlPath);
         await LoadHtml(html, resDir);
-        
+        */
         
     }
 

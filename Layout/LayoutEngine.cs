@@ -93,7 +93,7 @@ public sealed class LayoutEngine
         return resolved;
     }
 
-    public LayoutNode Build(BrowserElement element, ComputedStyle? parentStyle = null)
+    public LayoutNode Build(BrowserElement element, ComputedStyle? parentStyle = null, ComputedStyle? inheritedHoverOverrides = null)
     {
         var node = new LayoutNode();
         node.BrowserElement = element;
@@ -101,14 +101,49 @@ public sealed class LayoutEngine
 
         node.Element = element.Source;
 
-        // Create a fresh clone with inheritance — never mutate the original element.Style
-        var inheritedStyle = ComputeStyleWithInheritance(element.Style, parentStyle);
-        ApplyDefaultStyles(inheritedStyle, node.Element);
+        ApplyDefaultStyles(element.NormalStyle, node.Element);
+
+        if (!element.NormalStyle.SetProperties.Contains("width") && !element.NormalStyle.Width.HasValue)
+        {
+            if (element.Source is IHtmlInputElement inputEl)
+            {
+                var inputType = (inputEl.GetAttribute("type") ?? "").ToLowerInvariant();
+                if (inputType is "submit" or "button" or "reset")
+                {
+                    var text = inputEl.Value;
+                    if (!string.IsNullOrEmpty(text))
+                    {
+                        using var bmp = new Bitmap(1, 1);
+                        using var g = Graphics.FromImage(bmp);
+                        using var font = new Font(element.NormalStyle.FontFamily, element.NormalStyle.FontSize, FontStyle.Regular, GraphicsUnit.Pixel);
+                        float textWidth = g.MeasureString(text, font).Width;
+                        element.NormalStyle.Width = textWidth
+                            + element.NormalStyle.PaddingLeft + element.NormalStyle.PaddingRight
+                            + element.NormalStyle.BorderLeft.Width + element.NormalStyle.BorderRight.Width;
+                        Log.WriteLine($"  [Layout] <input type=\"{inputType}\"> auto-width={element.NormalStyle.Width} from text='{text}'");
+                    }
+                }
+            }
+        }
+
+        ComputedStyle? activeOverrides = element.HoverOverrides ?? inheritedHoverOverrides;
+        if (activeOverrides != null)
+        {
+            element.HoverStyle = CopyStyle(element.NormalStyle);
+            ApplyHoverOverrides(element.HoverStyle, activeOverrides);
+            Log.WriteLine($"  [Layout] <{element.Source?.TagName ?? "?"}> HoverStyle rebuilt: color=#{element.HoverStyle.Color.R:X2}{element.HoverStyle.Color.G:X2}{element.HoverStyle.Color.B:X2} textDec={element.HoverStyle.TextDecoration} activeOverrides=color?{activeOverrides.SetProperties.Contains("color")} textDec?{activeOverrides.SetProperties.Contains("text-decoration")}");
+        }
+        else
+        {
+            element.HoverStyle = element.NormalStyle;
+        }
+
+        var inheritedStyle = ComputeStyleWithInheritance(element.NormalStyle, parentStyle);
         node.Style = inheritedStyle;
 
         foreach (var child in element.Children)
         {
-            var childNode = Build(child, node.Style);
+            var childNode = Build(child, node.Style, activeOverrides);
             node.Children.Add(childNode);
         }
 
@@ -446,8 +481,18 @@ public sealed class LayoutEngine
 
             if (node.Children.Count > 0)
             {
-                var lastChild = node.Children[^1];
-                contentHeight = lastChild.Bounds.Y + lastChild.Bounds.Height - y;
+                // Find last visible child (skip display=None like <script>)
+                LayoutNode? lastVisible = null;
+                for (int i = node.Children.Count - 1; i >= 0; i--)
+                {
+                    if (node.Children[i].Style.Display != DisplayType.None && node.Children[i].Bounds.Height > 0)
+                    {
+                        lastVisible = node.Children[i];
+                        break;
+                    }
+                }
+                if (lastVisible != null)
+                    contentHeight = lastVisible.Bounds.Y + lastVisible.Bounds.Height - y;
             }
         }
 
@@ -649,5 +694,69 @@ public sealed class LayoutEngine
             return style.LineHeight;
         }
         return style.FontSize + 4;
+    }
+
+    private static ComputedStyle CopyStyle(ComputedStyle src)
+    {
+        var c = new ComputedStyle();
+        c.SetProperties = new HashSet<string>(src.SetProperties);
+        c.FontSize = src.FontSize;
+        c.FontFamily = src.FontFamily;
+        c.IsBold = src.IsBold;
+        c.LineHeight = src.LineHeight;
+        c.LineHeightIsMultiplier = src.LineHeightIsMultiplier;
+        c.MarginTop = src.MarginTop;
+        c.MarginBottom = src.MarginBottom;
+        c.MarginLeft = src.MarginLeft;
+        c.MarginRight = src.MarginRight;
+        c.PaddingTop = src.PaddingTop;
+        c.PaddingBottom = src.PaddingBottom;
+        c.PaddingLeft = src.PaddingLeft;
+        c.PaddingRight = src.PaddingRight;
+        c.BorderTop = src.BorderTop;
+        c.BorderBottom = src.BorderBottom;
+        c.BorderLeft = src.BorderLeft;
+        c.BorderRight = src.BorderRight;
+        c.Color = src.Color;
+        c.BackgroundColor = src.BackgroundColor;
+        c.Display = src.Display;
+        c.FlexDirection = src.FlexDirection;
+        c.FlexWrap = src.FlexWrap;
+        c.Gap = src.Gap;
+        c.FlexGrow = src.FlexGrow;
+        c.FlexShrink = src.FlexShrink;
+        c.FlexBasis = src.FlexBasis;
+        c.TextDecoration = src.TextDecoration;
+        c.BoxSizing = src.BoxSizing;
+        c.Width = src.Width;
+        c.Height = src.Height;
+        c.TextAlign = src.TextAlign;
+        c.BorderRadius = src.BorderRadius;
+        return c;
+    }
+
+    private static void ApplyHoverOverrides(ComputedStyle target, ComputedStyle hover)
+    {
+        if (hover.SetProperties.Contains("background-color"))
+            target.BackgroundColor = hover.BackgroundColor;
+        if (hover.SetProperties.Contains("color"))
+            target.Color = hover.Color;
+        if (hover.SetProperties.Contains("font-size"))
+            target.FontSize = hover.FontSize;
+        if (hover.SetProperties.Contains("font-family"))
+            target.FontFamily = hover.FontFamily;
+        if (hover.SetProperties.Contains("font-weight"))
+            target.IsBold = hover.IsBold;
+        if (hover.SetProperties.Contains("text-decoration"))
+            target.TextDecoration = hover.TextDecoration;
+        if (hover.SetProperties.Contains("border-radius"))
+            target.BorderRadius = hover.BorderRadius;
+        if (hover.SetProperties.Contains("border"))
+        {
+            target.BorderTop = hover.BorderTop;
+            target.BorderBottom = hover.BorderBottom;
+            target.BorderLeft = hover.BorderLeft;
+            target.BorderRight = hover.BorderRight;
+        }
     }
 }

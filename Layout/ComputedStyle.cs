@@ -34,12 +34,6 @@ public enum FlexWrapType
     Wrap
 }
 
-public enum ElementState
-{
-    Normal,
-    Hover
-}
-
 public enum TextAlignType
 {
     Left,

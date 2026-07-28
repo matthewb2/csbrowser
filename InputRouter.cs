@@ -67,7 +67,7 @@ public sealed class InputRouter
                 _caretActive = true;
 
                 _control.Focus();
-                CreateCaret(_control.Handle, IntPtr.Zero, 2, (int)(hitElement!.Style?.FontSize ?? 16));
+                CreateCaret(_control.Handle, IntPtr.Zero, 2, (int)(hitElement!.NormalStyle.FontSize));
                 ShowCaret(_control.Handle);
                 UpdateCaretPos();
             }
@@ -239,9 +239,9 @@ public sealed class InputRouter
         if (string.IsNullOrEmpty(text))
             return 0;
 
-        var fontFamily = _focusedElement?.Style?.FontFamily ?? "Arial";
-        var fontSize = _focusedElement?.Style?.FontSize ?? 16;
-        var fontStyle = _focusedElement?.Style?.IsBold == true ? FontStyle.Bold : FontStyle.Regular;
+        var fontFamily = _focusedElement?.NormalStyle.FontFamily ?? "Arial";
+        var fontSize = _focusedElement?.NormalStyle.FontSize ?? 16;
+        var fontStyle = _focusedElement?.NormalStyle.IsBold == true ? FontStyle.Bold : FontStyle.Regular;
 
         using var bmp = new Bitmap(1, 1);
         using var g = Graphics.FromImage(bmp);
@@ -254,7 +254,7 @@ public sealed class InputRouter
         int clientX = (int)(bounds.X + caretX) + _control.AutoScrollPosition.X;
         int clientY = (int)(bounds.Y + caretY) + _control.AutoScrollPosition.Y;
 
-        if (_focusedElement?.Style?.IsBold == true)
+        if (_focusedElement?.NormalStyle.IsBold == true)
         {
             clientX += 1;
         }
@@ -266,7 +266,7 @@ public sealed class InputRouter
     {
         if (_focusedElement != null && _caretActive)
         {
-            CreateCaret(_control.Handle, IntPtr.Zero, 2, (int)(_focusedElement.Style?.FontSize ?? 16));
+            CreateCaret(_control.Handle, IntPtr.Zero, 2, (int)(_focusedElement.NormalStyle.FontSize));
             ShowCaret(_control.Handle);
             UpdateCaretPos();
         }
@@ -299,8 +299,12 @@ public sealed class InputRouter
         var foundItem = _session.HitTestTree.HitTest(pos.X, pos.Y);
         BrowserElement? found = foundItem?.Element;
 
-        BrowserElement? foundAncestor = found?.FindAncestorWithPseudoStyle();
-        BrowserElement? oldAncestor = _hoveredElement?.FindAncestorWithPseudoStyle();
+        Log.WriteLine($"[Hover] HitTest at ({pos.X},{pos.Y}): found={found?.TagName ?? "null"} id={found?.Id ?? ""}");
+
+        BrowserElement? foundAncestor = found?.FindHoverableAncestor();
+        BrowserElement? oldAncestor = _hoveredElement?.FindHoverableAncestor();
+
+        Log.WriteLine($"[Hover] foundAncestor={foundAncestor?.TagName ?? "null"} id={foundAncestor?.Id ?? ""} oldAncestor={oldAncestor?.TagName ?? "null"} id={oldAncestor?.Id ?? ""}");
 
         if (foundAncestor == oldAncestor)
             return;
@@ -353,7 +357,7 @@ public sealed class InputRouter
     {
         if (_hoveredElement != null)
         {
-            var ancestor = _hoveredElement.FindAncestorWithPseudoStyle();
+            var ancestor = _hoveredElement.FindHoverableAncestor();
             if (ancestor != null)
             {
                 ClearHoverRecursive(ancestor);
@@ -374,16 +378,24 @@ public sealed class InputRouter
 
     private static void SetHoverRecursive(BrowserElement element)
     {
-        element.State = ElementState.Hover;
+        Log.WriteLine($"[Hover] SetHover ON <{element.TagName}> id={element.Id} HoverOverrides={element.HoverOverrides != null}");
+        element.IsHovered = true;
         foreach (var child in element.Children)
-            child.State = ElementState.Hover;
+        {
+            Log.WriteLine($"[Hover] SetHover ON child <{child.TagName}> id={child.Id} HoverOverrides={child.HoverOverrides != null}");
+            child.IsHovered = true;
+        }
     }
 
     private static void ClearHoverRecursive(BrowserElement element)
     {
-        element.State = ElementState.Normal;
+        Log.WriteLine($"[Hover] SetHover OFF <{element.TagName}> id={element.Id}");
+        element.IsHovered = false;
         foreach (var child in element.Children)
-            child.State = ElementState.Normal;
+        {
+            Log.WriteLine($"[Hover] SetHover OFF child <{child.TagName}> id={child.Id}");
+            child.IsHovered = false;
+        }
     }
 
     #endregion

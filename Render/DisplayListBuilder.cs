@@ -19,11 +19,20 @@ public sealed class DisplayListBuilder
             return;
 
         var be = node.BrowserElement;
-        var ownStyle = be?.EffectiveStyle ?? node.Style;
-        var elementStyle = be?.Style;
+
+        var ownStyle = (be != null && be.IsHovered) ? be.HoverStyle : be.NormalStyle;
+
+        if (be != null)
+        {
+            string styleSource = be.IsHovered ? "HoverStyle" : "NormalStyle";
+            Log.WriteLine($"[Display] <{be.TagName}> id={be.Id} IsHovered={be.IsHovered} -> using {styleSource}"
+                + $" color=#{ownStyle.Color.R:X2}{ownStyle.Color.G:X2}{ownStyle.Color.B:X2}"
+                + $" textDec={ownStyle.TextDecoration}"
+                + $" text='{be.Text}'");
+        }
 
         // Resolve inherited properties
-        var resolved = BuildResolvedStyle(ownStyle, elementStyle, inherited);
+        var resolved = BuildResolvedStyle(ownStyle, be?.NormalStyle, inherited);
 
         // Log all CSS properties for this node
         if (be != null)

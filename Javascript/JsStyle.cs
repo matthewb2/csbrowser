@@ -13,6 +13,6 @@ public sealed class JsStyle
 
     public string color
     {
-        set => _element.Style.Color = Css.CssColorParser.Parse(value);
+        set => _element.NormalStyle.Color = Css.CssColorParser.Parse(value);
     }
 }

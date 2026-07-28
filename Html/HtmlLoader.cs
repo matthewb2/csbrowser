@@ -27,6 +27,7 @@ public sealed class HtmlLoader
         await ApplyLinkedStylesheets(root, doc);
         ApplyStyles(root, doc);
         ApplyInlineStyles(root);
+        BuildHoverStyles(root);
 
         return root;
     }
@@ -38,7 +39,7 @@ public sealed class HtmlLoader
         node.TagName = element.TagName.ToLower();
 
         if (node.TagName is "head" or "script" or "style" or "meta" or "link" or "title")
-            node.Style.Display = DisplayType.None;
+            node.NormalStyle.Display = DisplayType.None;
 
         Log.WriteLine($"  [HtmlLoader] <{node.TagName}>");
 
@@ -126,7 +127,7 @@ public sealed class HtmlLoader
                 var textChild = new BrowserElement();
                 textChild.TagName = "#text";
                 textChild.Text = text.Trim();
-                textChild.Style.Display = DisplayType.Inline;
+                textChild.NormalStyle.Display = DisplayType.Inline;
                 textChild.Parent = node;
                 node.Children.Add(textChild);
                 hasContentChildren = true;
@@ -199,7 +200,7 @@ public sealed class HtmlLoader
                     if (browserEl == null)
                         continue;
 
-                    ApplyCssDeclaration(browserEl.Style, browserEl.TagName, styleRule.Style);
+                    ApplyCssDeclaration(browserEl.NormalStyle, browserEl.TagName, styleRule.Style);
                 }
             }
         }
@@ -245,7 +246,7 @@ public sealed class HtmlLoader
                     if (browserEl == null)
                         continue;
 
-                    ApplyCssDeclaration(browserEl.Style, browserEl.TagName, styleRule.Style);
+                    ApplyCssDeclaration(browserEl.NormalStyle, browserEl.TagName, styleRule.Style);
                 }
             }
         }
@@ -256,7 +257,7 @@ public sealed class HtmlLoader
         Log.WriteLine("[HtmlLoader] Applying inline styles...");
 
         if (root.InlineStyle != null)
-            ApplyCssDeclaration(root.Style, root.TagName, root.InlineStyle);
+            ApplyCssDeclaration(root.NormalStyle, root.TagName, root.InlineStyle);
 
         foreach (var child in root.Children)
             ApplyInlineStyles(child);
@@ -321,15 +322,26 @@ public sealed class HtmlLoader
         var pseudoStyle = new ComputedStyle();
         ApplyCssDeclaration(pseudoStyle, $"{baseSelector}:{pseudoName}", css);
 
+        Log.WriteLine($"    [Hover] pseudoStyle built: SetProperties=[{string.Join(",", pseudoStyle.SetProperties)}]"
+            + $" color=#{pseudoStyle.Color.R:X2}{pseudoStyle.Color.G:X2}{pseudoStyle.Color.B:X2}"
+            + $" textDec={pseudoStyle.TextDecoration}"
+            + $" bg=#{(pseudoStyle.BackgroundColor.HasValue ? $"{pseudoStyle.BackgroundColor.Value.R:X2}{pseudoStyle.BackgroundColor.Value.G:X2}{pseudoStyle.BackgroundColor.Value.B:X2}" : "null")}");
+
+        int matchCount = 0;
         foreach (var element in matched)
         {
             var browserEl = FindBrowserElement(root, element);
             if (browserEl == null)
+            {
+                Log.WriteLine($"    [Hover] matched <{element.TagName}> but no BrowserElement found");
                 continue;
+            }
 
-            browserEl.PseudoStyles[pseudoName] = pseudoStyle;
-            Log.WriteLine($"    [Css] <{browserEl.TagName}> stored :{pseudoName} pseudo-style");
+            browserEl.HoverOverrides = pseudoStyle;
+            matchCount++;
+            Log.WriteLine($"    [Hover] <{browserEl.TagName}> id={browserEl.Id} HoverOverrides assigned. SetProperties=[{string.Join(",", pseudoStyle.SetProperties)}]");
         }
+        Log.WriteLine($"    [Hover] total elements matched for '{baseSelector}:{pseudoName}': {matchCount}");
     }
 
     private static void ApplyCssDeclaration(
@@ -820,5 +832,123 @@ public sealed class HtmlLoader
         { result = unitless; return true; }
 
         return false;
+    }
+
+    private static void BuildHoverStyles(BrowserElement node, ComputedStyle? inheritedOverrides = null)
+    {
+        ComputedStyle? activeOverrides = node.HoverOverrides ?? inheritedOverrides;
+
+        if (activeOverrides != null)
+        {
+            node.HoverStyle = CopyStyle(node.NormalStyle);
+            ApplyHoverOverrides(node.HoverStyle, activeOverrides);
+            Log.WriteLine($"    [Hover] BuildHoverStyles <{node.TagName}> id={node.Id}: HoverStyle built with overrides. color=#{node.HoverStyle.Color.R:X2}{node.HoverStyle.Color.G:X2}{node.HoverStyle.Color.B:X2} textDec={node.HoverStyle.TextDecoration}");
+        }
+        else
+        {
+            var defaultHover = GetDefaultHoverStyle(node);
+            if (defaultHover != null)
+            {
+                node.HoverOverrides = defaultHover;
+                activeOverrides = defaultHover;
+                node.HoverStyle = CopyStyle(node.NormalStyle);
+                ApplyHoverOverrides(node.HoverStyle, defaultHover);
+                var bg = node.HoverStyle.BackgroundColor;
+                Log.WriteLine($"    [Hover] BuildHoverStyles <{node.TagName}> id={node.Id}: HoverStyle built with DEFAULTS. textDec={node.HoverStyle.TextDecoration} bg={(bg.HasValue ? $"#{bg.Value.R:X2}{bg.Value.G:X2}{bg.Value.B:X2}" : "null")}");
+            }
+            else
+            {
+                node.HoverStyle = node.NormalStyle;
+                Log.WriteLine($"    [Hover] BuildHoverStyles <{node.TagName}> id={node.Id}: HoverStyle = NormalStyle (no overrides)");
+            }
+        }
+
+        foreach (var child in node.Children)
+            BuildHoverStyles(child, activeOverrides);
+    }
+
+    private static ComputedStyle? GetDefaultHoverStyle(BrowserElement node)
+    {
+        if (node.TagName == "a")
+        {
+            var h = new ComputedStyle();
+            h.SetProperties.Add("text-decoration");
+            h.TextDecoration = TextDecorationType.Underline;
+            return h;
+        }
+
+        if (node.TagName == "input" && node.InputType is "submit" or "button" or "reset")
+        {
+            var h = new ComputedStyle();
+            h.SetProperties.Add("background-color");
+            h.BackgroundColor = Color.FromArgb(255, 238, 238, 238);
+            return h;
+        }
+
+        return null;
+    }
+
+    private static ComputedStyle CopyStyle(ComputedStyle src)
+    {
+        var c = new ComputedStyle();
+        c.SetProperties = new HashSet<string>(src.SetProperties);
+        c.FontSize = src.FontSize;
+        c.FontFamily = src.FontFamily;
+        c.IsBold = src.IsBold;
+        c.LineHeight = src.LineHeight;
+        c.LineHeightIsMultiplier = src.LineHeightIsMultiplier;
+        c.MarginTop = src.MarginTop;
+        c.MarginBottom = src.MarginBottom;
+        c.MarginLeft = src.MarginLeft;
+        c.MarginRight = src.MarginRight;
+        c.PaddingTop = src.PaddingTop;
+        c.PaddingBottom = src.PaddingBottom;
+        c.PaddingLeft = src.PaddingLeft;
+        c.PaddingRight = src.PaddingRight;
+        c.BorderTop = src.BorderTop;
+        c.BorderBottom = src.BorderBottom;
+        c.BorderLeft = src.BorderLeft;
+        c.BorderRight = src.BorderRight;
+        c.Color = src.Color;
+        c.BackgroundColor = src.BackgroundColor;
+        c.Display = src.Display;
+        c.FlexDirection = src.FlexDirection;
+        c.FlexWrap = src.FlexWrap;
+        c.Gap = src.Gap;
+        c.FlexGrow = src.FlexGrow;
+        c.FlexShrink = src.FlexShrink;
+        c.FlexBasis = src.FlexBasis;
+        c.TextDecoration = src.TextDecoration;
+        c.BoxSizing = src.BoxSizing;
+        c.Width = src.Width;
+        c.Height = src.Height;
+        c.TextAlign = src.TextAlign;
+        c.BorderRadius = src.BorderRadius;
+        return c;
+    }
+
+    private static void ApplyHoverOverrides(ComputedStyle target, ComputedStyle hover)
+    {
+        if (hover.SetProperties.Contains("background-color"))
+            target.BackgroundColor = hover.BackgroundColor;
+        if (hover.SetProperties.Contains("color"))
+            target.Color = hover.Color;
+        if (hover.SetProperties.Contains("font-size"))
+            target.FontSize = hover.FontSize;
+        if (hover.SetProperties.Contains("font-family"))
+            target.FontFamily = hover.FontFamily;
+        if (hover.SetProperties.Contains("font-weight"))
+            target.IsBold = hover.IsBold;
+        if (hover.SetProperties.Contains("text-decoration"))
+            target.TextDecoration = hover.TextDecoration;
+        if (hover.SetProperties.Contains("border-radius"))
+            target.BorderRadius = hover.BorderRadius;
+        if (hover.SetProperties.Contains("border"))
+        {
+            target.BorderTop = hover.BorderTop;
+            target.BorderBottom = hover.BorderBottom;
+            target.BorderLeft = hover.BorderLeft;
+            target.BorderRight = hover.BorderRight;
+        }
     }
 }
