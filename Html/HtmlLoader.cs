@@ -866,7 +866,11 @@ public sealed class HtmlLoader
         foreach (var child in node.Children)
             BuildHoverStyles(child, activeOverrides);
     }
-
+    
+    /* 
+     * 기본 Hover 스타일을 여기서 정합니다
+     *  
+     */
     private static ComputedStyle? GetDefaultHoverStyle(BrowserElement node)
     {
         if (node.TagName == "a")
@@ -881,7 +885,7 @@ public sealed class HtmlLoader
         {
             var h = new ComputedStyle();
             h.SetProperties.Add("background-color");
-            h.BackgroundColor = Color.FromArgb(255, 238, 238, 238);
+            h.BackgroundColor = Color.FromArgb(255, 224, 224, 224);
             return h;
         }
 

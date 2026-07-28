@@ -229,14 +229,14 @@ public sealed class LayoutEngine
                 if (inputType == "submit" || inputType == "button" || inputType == "reset")
                 {
                     style.Display = DisplayType.Block;
-                    if (style.MarginTop == 0) style.MarginTop = 4;
-                    if (style.MarginBottom == 0) style.MarginBottom = 4;
-                    if (style.PaddingTop == 0) style.PaddingTop = 6;
-                    if (style.PaddingBottom == 0) style.PaddingBottom = 6;
-                    if (style.PaddingLeft == 0) style.PaddingLeft = 12;
-                    if (style.PaddingRight == 0) style.PaddingRight = 12;
+                    if (style.MarginTop == 0) style.MarginTop = 2;
+                    if (style.MarginBottom == 0) style.MarginBottom = 2;
+                    if (style.PaddingTop == 0) style.PaddingTop = 2;
+                    if (style.PaddingBottom == 0) style.PaddingBottom = 2;
+                    if (style.PaddingLeft == 0) style.PaddingLeft = 2;
+                    if (style.PaddingRight == 0) style.PaddingRight = 2;
                     if (!style.SetProperties.Contains("background-color"))
-                        style.BackgroundColor = Color.FromArgb(224, 224, 224);
+                        style.BackgroundColor = Color.FromArgb(238, 238, 238);
                     if (!style.SetProperties.Contains("border"))
                     {
                         style.BorderTop = new BorderSide { Width = 1, Style = BorderStyle.Solid, Color = Color.FromArgb(120, 120, 120) };
@@ -255,10 +255,10 @@ public sealed class LayoutEngine
                     style.Display = DisplayType.Block;
                     if (style.MarginTop == 0) style.MarginTop = 2;
                     if (style.MarginBottom == 0) style.MarginBottom = 2;
-                    if (style.PaddingTop == 0) style.PaddingTop = 4;
-                    if (style.PaddingBottom == 0) style.PaddingBottom = 4;
-                    if (style.PaddingLeft == 0) style.PaddingLeft = 6;
-                    if (style.PaddingRight == 0) style.PaddingRight = 6;
+                    if (style.PaddingTop == 0) style.PaddingTop = 2;
+                    if (style.PaddingBottom == 0) style.PaddingBottom = 2;
+                    if (style.PaddingLeft == 0) style.PaddingLeft = 2;
+                    if (style.PaddingRight == 0) style.PaddingRight = 2;
                     if (!style.SetProperties.Contains("background-color"))
                         style.BackgroundColor = Color.White;
                     if (!style.SetProperties.Contains("border"))
