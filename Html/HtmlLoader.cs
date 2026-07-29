@@ -8,20 +8,32 @@ using CSBrowser.Layout;
 
 namespace CSBrowser.Html;
 
+/// <summary>
+/// HTML 문자열과 연결된 CSS 파일을 파싱하여 내부 브라우저 요소 트리(<see cref="BrowserElement"/>)로 변환하고,
+/// 일반 스타일, 인라인 스타일, 가상 클래스(Hover 등) 스타일을 계산 및 적용하는 클래스입니다.
+/// </summary>
 public sealed class HtmlLoader
 {
     private string? _baseDir;
 
+    /// <summary>
+    /// 입력받은 HTML 문자열을 비동기적으로 파싱하여 브라우저 요소 트리의 루트 노드를 생성하고 각종 스타일을 적용합니다.
+    /// </summary>
+    /// <param name="html">파싱할 HTML 문자열입니다.</param>
+    /// <param name="baseDir">외부 파일(CSS, 이미지 등)을 찾기 위한 기준 디렉토리 경로입니다.</param>
+    /// <returns>스타일이 모두 적용된 루트 <see cref="BrowserElement"/> 객체를 반환합니다.</returns>
     public async Task<BrowserElement> LoadAsync(string html, string? baseDir = null)
     {
         Log.WriteLine("[HtmlLoader] Parsing HTML...");
 
         _baseDir = baseDir;
 
+        // AngleSharp 기본 설정에 CSS 파싱 기능을 추가합니다.
         var config = Configuration.Default.WithCss();
         var context = BrowsingContext.New(config);
         var doc = await context.OpenAsync(req => req.Content(html));
 
+        // AngleSharp 문서 객체를 커스텀 브라우저 요소 트리로 변환합니다.
         var root = Convert(doc.DocumentElement);
 
         await ApplyLinkedStylesheets(root, doc);
@@ -32,12 +44,20 @@ public sealed class HtmlLoader
         return root;
     }
 
+    /// <summary>
+    /// AngleSharp의 IElement 객체를 순회하며 커스텀 <see cref="BrowserElement"/> 객체로 변환하고, 
+    /// 태그 종류별 속성(ID, Class, 이벤트 핸들러, 이미지 경로, 입력 폼 속성 등)을 추출 및 매핑합니다.
+    /// </summary>
+    /// <param name="element">변환할 AngleSharp IElement 객체입니다.</param>
+    /// <returns>변환된 <see cref="BrowserElement"/> 객체를 반환합니다.</returns>
+
     private BrowserElement Convert(IElement element)
     {
         var node = new BrowserElement();
         node.Source = element;
         node.TagName = element.TagName.ToLower();
 
+        // 렌더링에 직접 표시되지 않아야 하는 태그들은 Display 속성을 None으로 설정합니다.
         if (node.TagName is "head" or "script" or "style" or "meta" or "link" or "title")
             node.NormalStyle.Display = DisplayType.None;
 
@@ -46,6 +66,7 @@ public sealed class HtmlLoader
         node.Id = element.Id ?? "";
         node.ClassName = element.GetAttribute("class") ?? "";
 
+        // 인라인 스타일(style="..." 속성)이 존재할 경우 가져옵니다.
         var inlineStyle = element.GetStyle();
         if (inlineStyle != null && inlineStyle.Length > 0)
         {

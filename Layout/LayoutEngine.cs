@@ -8,15 +8,28 @@ using System.IO;
 
 namespace CSBrowser.Layout;
 
+/// <summary>
+/// HTML 요소 트리와 CSS 스타일을 기반으로 화면 배치를 계산하고 
+/// 레이아웃 노드(LayoutNode) 구조를 생성하는 레이아웃 엔진 클래스입니다.
+/// </summary>
 public sealed class LayoutEngine
 {
     private readonly FlexLayoutEngine _flex;
 
+    /// <summary>
+    /// <see cref="LayoutEngine"/> 클래스의 새 인스턴스를 초기화합니다.
+    /// </summary>
     public LayoutEngine()
     {
         _flex = new FlexLayoutEngine(this);
     }
 
+    /// <summary>
+    /// 루트 브라우저 요소를 지정된 너비 기준으로 레이아웃하여 루트 레이아웃 노드를 반환합니다.
+    /// </summary>
+    /// <param name="root">레이아웃을 시작할 루트 <see cref="BrowserElement"/>입니다.</param>
+    /// <param name="width">사용 가능한 전체 가로 너비입니다.</param>
+    /// <returns>계산된 크기와 위치가 포함된 루트 <see cref="LayoutNode"/>입니다.</returns>
     public LayoutNode Layout(BrowserElement root, float width)
     {
         var layoutRoot = Build(root, null);
@@ -24,6 +37,12 @@ public sealed class LayoutEngine
         return layoutRoot;
     }
 
+    /// <summary>
+    /// 부모 스타일의 상속 속성을 반영하여 요소의 최종 계산된 스타일을 생성합니다.
+    /// </summary>
+    /// <param name="elementStyle">요소의 고유 스타일입니다.</param>
+    /// <param name="parentStyle">상위 부모의 계산된 스타일입니다.</param>
+    /// <returns>상속이 적용된 최종 <see cref="ComputedStyle"/> 객체입니다.</returns>
     private static ComputedStyle ComputeStyleWithInheritance(
         ComputedStyle elementStyle, ComputedStyle? parentStyle)
     {

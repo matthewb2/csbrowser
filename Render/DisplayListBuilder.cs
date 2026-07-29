@@ -2,16 +2,38 @@
 
 namespace CSBrowser.Render;
 
+
+/// <summary>
+/// 레이아웃 트리(LayoutNode)를 순회하며 화면에 렌더링할 
+/// 디스플레이 아이템(DisplayItem) 목록을 생성하는 빌더 클래스입니다.
+/// </summary>
 public sealed class DisplayListBuilder
 {
+
+    /// <summary>
+    /// 로드된 이미지 객체를 재사용하기 위한 이미지 캐시 딕셔너리입니다. (키: 파일 경로, 값: Image 객체)
+    /// </summary>
     private static readonly Dictionary<string, Image> _imageCache = new();
 
+    /// <summary>
+    /// 루트 레이아웃 노드부터 시작하여 전체 트리를 순회하고, 렌더링에 필요한 디스플레이 아이템 리스트를 반환합니다.
+    /// </summary>
+    /// <param name="root">순회를 시작할 루트 <see cref="LayoutNode"/>입니다.</param>
+    /// <returns>생성된 <see cref="DisplayItem"/> 객체들의 리스트입니다.</returns>
     public List<DisplayItem> Build(LayoutNode root)
     {
         var items = new List<DisplayItem>();
         Walk(root, items, null);
         return items;
     }
+
+    /// <summary>
+    /// 레이아웃 노드 트리를 재귀적으로 순회하면서 각 노드의 스타일을 해결(Resolve)하고,
+    /// 렌더링 요소(이미지, 텍스트, 배경, 테두리 등)가 있는 경우 디스플레이 아이템을 생성하여 리스트에 추가합니다.
+    /// </summary>
+    /// <param name="node">현재 처리 중인 <see cref="LayoutNode"/>입니다.</param>
+    /// <param name="items">디스플레이 아이템들이 누적될 리스트입니다.</param>
+    /// <param name="inherited">상위 노드로부터 상속받은 부모의 스타일입니다.</param>
 
     private void Walk(LayoutNode node, List<DisplayItem> items, ComputedStyle? inherited)
     {

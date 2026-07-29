@@ -3,8 +3,15 @@ using CSBrowser.Layout;
 
 namespace CSBrowser.Render;
 
+/// <summary>
+/// GDI+ 기반으로 디스플레이 아이템들을 화면에 렌더링하는 클래스입니다.
+/// 배경, 테두리, 이미지, 입력 요소(Input/Checkbox), 텍스트 및 텍스트 장식을 그리는 기능을 제공합니다.
+/// </summary>
 public sealed class GdiRenderer
 {
+    /// <summary>
+    /// 디스플레이 아이템 목록을 순회하며 전체 렌더링을 수행합니다.
+    /// </summary>
     public void Render(Graphics g, List<DisplayItem> items)
     {
         Log.WriteLine($"[GdiRenderer] Rendering {items.Count} items...");
@@ -13,6 +20,9 @@ public sealed class GdiRenderer
             RenderItem(g, item);
     }
 
+    /// <summary>
+    /// 개별 디스플레이 아이템의 속성(배경색, 테두리, 이미지, 텍스트 등)을 분석하여 적절한 렌더링 메서드를 호출합니다.
+    /// </summary>
     public void RenderItem(Graphics g, DisplayItem item)
     {
         if (!string.IsNullOrEmpty(item.Text))
@@ -23,7 +33,7 @@ public sealed class GdiRenderer
         {
          //   Log.WriteLine($"[RenderItem] <{(item.Element?.TagName ?? "?")}> (no text) Bounds=({item.Bounds.X:F0},{item.Bounds.Y:F0} {item.Bounds.Width:F0}x{item.Bounds.Height:F0})");
         }
-
+        // 배경색이 지정된 경우 영역 채우기 (모서리가 둥근 경우 경로 활용)
         if (item.BackgroundColor.HasValue)
         {
             using var bgBrush = new SolidBrush(item.BackgroundColor.Value);
@@ -38,8 +48,10 @@ public sealed class GdiRenderer
             }
         }
 
+        // 테두리 렌더링
         DrawBorders(g, item);
 
+        // 요소 타입에 따른 분기 처리 (이미지, input 요소, 일반 텍스트)
         if (item.IsImage && item.Image != null)
         {
             g.DrawImage(item.Image, item.Bounds);
@@ -63,6 +75,9 @@ public sealed class GdiRenderer
         }
     }
 
+    /// <summary>
+    /// 입력 필드(텍스트박스, 버튼 등) 및 플레이스홀더(Placeholder)를 렌더링합니다.
+    /// </summary>
     private void RenderInputText(Graphics g, DisplayItem item)
     {
         var be = item.Element;
@@ -94,6 +109,7 @@ public sealed class GdiRenderer
             g.TextRenderingHint = System.Drawing.Text.TextRenderingHint.ClearTypeGridFit;
             g.DrawString(item.Text, font, brush, textRect, format);
         }
+        // 텍스트는 없고 플레이스홀더가 존재하는 경우 (버튼 제외)
         else if (be != null && !string.IsNullOrEmpty(be.Placeholder) && !isButton)
         {
             var fontFamily = item.FontFamily;
